@@ -11,4 +11,12 @@ else
 	channel=$1
 fi
 
-google-chrome --disable-translate --kiosk file://${playr_loader_file}?channel=${channel}
+if [ $2 -eq "" ]
+then
+	# enter the location of the plpayr-loader.html file
+	reload_url="file:///home/webc/playr-loader/playr-loader.html"
+else
+	reload_url=$2
+fi
+
+google-chrome --disable-translate --kiosk file://${playr_loader_file}?channel=${channel}&reload_url=${reload_url}
