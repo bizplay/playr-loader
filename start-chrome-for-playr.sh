@@ -14,7 +14,7 @@ fi
 if [ $2 -eq "" ]
 then
 	# enter the location of the plpayr-loader.html file
-	reload_url="file:///home/webc/playr-loader/playr-loader.html"
+	reload_url=file://${playr_loader_file"
 else
 	reload_url=$2
 fi
