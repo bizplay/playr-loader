@@ -2,6 +2,12 @@
 # before loading the playr channel
 playr_loader_file="/home/webc/playr_loader/playr_loader.html"
 
+echo "**************************************************"
+echo $1
+echo "**************************************************"
+echo $2
+echo "**************************************************"
+
 if [[ $1 == "" ]]
 then
 	# enter the channel url below so it is equal to the 
@@ -18,5 +24,17 @@ then
 else
 	reload_url=$2
 fi
+
+echo "**************************************************"
+echo $1
+echo "**************************************************"
+echo $2
+echo "**************************************************"
+echo $channel
+echo "**************************************************"
+echo $reload_url
+echo "**************************************************"
+echo $playr_loader_file
+echo "**************************************************"
 
 google-chrome --disable-translate --kiosk file://${playr_loader_file}?channel=${channel}&reload_url=${reload_url}
