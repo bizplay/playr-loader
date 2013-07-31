@@ -19,16 +19,4 @@ else
 	reload_url=file://$2
 fi
 
-echo "**************************************************"
-echo $1
-echo "**************************************************"
-echo $2
-echo "**************************************************"
-echo $channel
-echo "**************************************************"
-echo $reload_url
-echo "**************************************************"
-echo $playr_loader_file
-echo "**************************************************"
-
 google-chrome --disable-translate --kiosk file://${playr_loader_file}?channel=${channel}&reload_url=${reload_url}
