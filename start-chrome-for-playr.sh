@@ -2,7 +2,7 @@
 # before loading the playr channel
 playr_loader_file="/home/webc/playr_loader/playr_loader.html"
 
-if [ $1 -eq "" ]
+if [[ $1 == "" ]]
 then
 	# enter the channel url below so it is equal to the 
 	# Playback Address on your dashboard
@@ -11,10 +11,10 @@ else
 	channel=$1
 fi
 
-if [ $2 -eq "" ]
+if [[ $2 == "" ]]
 then
 	# enter the location of the plpayr-loader.html file
-	reload_url=file://${playr_loader_file
+	reload_url=file://${playr_loader_file}
 else
 	reload_url=$2
 fi
