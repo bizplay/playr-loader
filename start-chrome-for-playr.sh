@@ -14,7 +14,7 @@ fi
 
 if [[ $2 == "" ]]
 then
-	# enter the location of the plpayr-loader.html file
+	# enter the location of the playr-loader.html file
 	reload_url=file://${playr_loader_file}
 else
 	reload_url=file://$2
