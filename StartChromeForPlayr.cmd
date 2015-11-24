@@ -35,12 +35,11 @@ set channel=http://playr.biz/xxxx/yyyy
 ::
 :: set channel=http://play.playr.biz
 
-:: If you do not use the http://play.plyr.biz URL but a specific channel URL
-:: you can uncomment the line below to prevent the 
+:: Prevent the 
 :: "Google Chrome didn't shut down correclty"
 :: warning when restarting after a crash of Windows (power outage)
 ::
-:: del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\Preferences" /Q
+del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\Preferences" /Q
 
 :: The code below should work as is and should not require any changes
 ::
