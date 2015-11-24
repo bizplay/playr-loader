@@ -40,7 +40,7 @@ set channel=http://playr.biz/xxxx/yyyy
 :: "Google Chrome didn't shut down correclty"
 :: warning when restarting after a crash of Windows (power outage)
 ::
-:: del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\Settings" /Q
+:: del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\Preferences" /Q
 
 :: The code below should work as is and should not require any changes
 ::
