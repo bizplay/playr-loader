@@ -7,7 +7,7 @@ if [[ $1 == "" ]]
 then
 	# enter the channel url below so it is equal to the 
 	# Playback Address on your dashboard
-	channel="http://playr.biz/xxxx/yyyy"
+	channel="http://play.playr.biz"
 else
 	channel=$1
 fi
@@ -20,4 +20,4 @@ else
 	reload_url=file://$2
 fi
 
-google-chrome --disable-translate --kiosk "file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}
+google-chrome --no-first-run --no-default-browser-check --disable-translate --kiosk "file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}
