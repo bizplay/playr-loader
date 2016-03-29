@@ -44,8 +44,8 @@ set channel3=http://playr.biz/xxxx/aaaa
 :: "Google Chrome didn't shut down correclty"
 :: warning when restarting after a crash of Windows (power outage)
 ::
-:: del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\Settings" /Q
-:: del "%USERPROFILE%\AppData\Local\Google\Chrome SxS\User Data\Default\Settings" /Q
+:: del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\Preferences" /Q
+:: del "%USERPROFILE%\AppData\Local\Google\Chrome SxS\User Data\Default\Preferences" /Q
 
 :: change the paths below to point at the different chrome.exe's that are installed on your computer
 :: you can find the path to the chrome.exe by right clicking the (desktop) icon  of Chrome/Chrome Canary/Chromium, choosing properties
