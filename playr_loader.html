@@ -19,6 +19,7 @@
     var tryCountdown;
     
     var loadPlayer = function() {
+      "use strict";
       if (!checkForChannelParameter()) { return false; }
       
       // Added Date param to bypass cache
@@ -29,6 +30,7 @@
     };
     
     var checkForChannelParameter = function() {
+      "use strict";
       if (queryString.channel === undefined) { 
         document.getElementById("missing_channel_parameter").style.display = "block";
         return false; 
@@ -37,10 +39,12 @@
     };
     
     var gotoPlayer = function() {
+      "use strict";
       window.location = queryString.channel + "?reload_url=" + escape(window.location);
     };
     
     var retryLoading = function() {
+      "use strict";
       var countdown = 10;
       document.getElementById("retry_message").style.display = "block";
       
@@ -57,6 +61,7 @@
     };
     
     var queryString = function () {
+      "use strict";
       // This function is anonymous, is executed immediately and 
       // the return value is assigned to QueryString!
       var query_string = {};
