@@ -22,24 +22,28 @@
 ::
 set playr_loader_file=%USERPROFILE%/Desktop/playr_loader.html
 
+:: use the url below if you want be able to set the channel to play on your dashboard.
+:: Note: using this setting requires a one time registration of the playback device
+:: using the dashboard (under Settings/Players) 
+::
+set channel=http://play.playr.biz
+
 :: change and use the url below if you want to play a specific channel that cannot be 
 :: changed from your dashboard
 :: Note: add /en, /nl or other language indication before /xxxx to enforce the 
 :: use of the correct locale 
 ::
-set channel=http://playr.biz/xxxx/yyyy
-
-:: use the url below if you want be able to set the channel to play on your dashboard.
-:: Note: using this setting requires a one time registration of the playback device
-:: using the dashboard (under Settings/Players) 
-::
-:: set channel=http://play.playr.biz
+:: set channel=http://playr.biz/xxxx/yyyy
 
 :: Prevent the 
-:: "Google Chrome didn't shut down correclty"
-:: warning when restarting after a crash of Windows (power outage)
-::
+:: "Google Chrome didn't shut down correctly"
+:: warning when restarting after a crash of Windows, power outage or 
+:: other non standard way to end Windows.
+:: Choose one of the following options. The first only deletes one file
+:: the second option deletes all browser data such as cached videos. The
+:: second option should only be used on devices that have very little disk space
 del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\Preferences" /Q
+:: del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\" /S /Q
 
 :: The code below should work as is and should not require any changes
 ::
