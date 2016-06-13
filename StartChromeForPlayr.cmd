@@ -51,9 +51,9 @@ setlocal enabledelayedexpansion
 set replace=%%20
 set playr_loader_file_normalized=%playr_loader_file: =!replace!%
 if exist "C:\Program Files\Google\Chrome\Application\chrome.exe" (
-  "C:\Program Files\Google\Chrome\Application\chrome.exe" --no-first-run --no-default-browser-check --disable-translate --kiosk "file:///%playr_loader_file_normalized%?channel=%channel%"
+  "C:\Program Files\Google\Chrome\Application\chrome.exe" --no-first-run --no-default-browser-check --disable-translate --disable-session-crashed-bubble --kiosk "file:///%playr_loader_file_normalized%?channel=%channel%"
 ) else (
-  "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" --no-first-run --no-default-browser-check --disable-translate --kiosk "file:///%playr_loader_file_normalized%?channel=%channel%"
+  "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" --no-first-run --no-default-browser-check --disable-translate --disable-session-crashed-bubble --kiosk "file:///%playr_loader_file_normalized%?channel=%channel%"
 )
 
 :: Older version of Chrome were installed in the AppData folder of a specific user, 

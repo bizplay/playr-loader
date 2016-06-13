@@ -76,6 +76,6 @@ screen_position3=4000,20
 setlocal enabledelayedexpansion
 set replace=%%20
 set playr_loader_file_normalized=%playr_loader_file: =!replace!%
-start /min cmd /c "%google_chrome_path% --chrome-frame --no-first-run --no-default-browser-check --disable-translate --window-position=%screen_position1% --kiosk file:///%playr_loader_file_normalized%?channel=%channel1%"
-start /min cmd /c "%chromium_path% --chrome-frame --no-first-run --no-default-browser-check --disable-translate --window-position=%screen_position2% --kiosk file:///%playr_loader_file_normalized%?channel=%channel2%"
-start /min cmd /c "%google_chrome_canary_path% --chrome-frame --no-first-run --no-default-browser-check --disable-translate --window-position=%screen_position3% --kiosk file:///%playr_loader_file_normalized%?channel=%channel3%"
+start /min cmd /c "%google_chrome_path% --chrome-frame --no-first-run --no-default-browser-check --disable-translate --window-position=%screen_position1% --disable-session-crashed-bubble --kiosk file:///%playr_loader_file_normalized%?channel=%channel1%"
+start /min cmd /c "%chromium_path% --chrome-frame --no-first-run --no-default-browser-check --disable-translate --window-position=%screen_position2% --disable-session-crashed-bubble --kiosk file:///%playr_loader_file_normalized%?channel=%channel2%"
+start /min cmd /c "%google_chrome_canary_path% --chrome-frame --no-first-run --no-default-browser-check --disable-translate --window-position=%screen_position3% --disable-session-crashed-bubble --kiosk file:///%playr_loader_file_normalized%?channel=%channel3%"

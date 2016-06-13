@@ -20,4 +20,4 @@ else
 	reload_url=file://$2
 fi
 
-google-chrome --no-first-run --no-default-browser-check --disable-translate --kiosk "file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}
+google-chrome --no-first-run --no-default-browser-check --disable-translate --disable-session-crashed-bubble --kiosk "file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}
