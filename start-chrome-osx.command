@@ -40,4 +40,4 @@ fi
 
 # to check the values of the variables created above uncomment the following line
 # echo "file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}
-open -a "/Applications/Google Chrome.app" --args --no-first-run --no-default-browser-check --disable-translate --disable-session-crashed-bubble --kiosk "file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}
+open -a "/Applications/Google Chrome.app" --args --no-first-run --no-default-browser-check --disable-translate  --kiosk "file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}

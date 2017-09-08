@@ -18,7 +18,7 @@
 
 # The path to the page that will check internet connection 
 # before loading the playr channel
-playr_loader_file="/home/webc/playr-loader/playr_loader.html"
+playr_loader_file="/home/user-name/playr-loader/playr_loader.html"
 
 if [[ $1 == "" ]]
 then
@@ -40,4 +40,4 @@ fi
 
 # to check the values of the variables created above uncomment the following line
 # echo "file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}
-google-chrome --no-first-run --no-default-browser-check --disable-translate --disable-session-crashed-bubble --kiosk "file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}
+google-chrome --no-first-run --no-default-browser-check --disable-translate --kiosk "file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}
