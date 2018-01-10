@@ -1,7 +1,7 @@
 @echo off
 ::
 :: This batch file is provided to show digital signage content from playr.biz
-:: To read more on the purpose of this file and how to use it 
+:: To read more on the purpose of this file and how to use it
 :: see the accompanying README.md file or
 :: contact your digital signage provider.
 ::
@@ -14,7 +14,7 @@
 :: HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
 :: WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 :: FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-:: OTHER DEALINGS IN THE SOFTWARE. 
+:: OTHER DEALINGS IN THE SOFTWARE.
 
 :: make sure that the path to the playr_loader.html file is correct in your situation
 :: %USERPROFILE% points to your personal profile directory, that usually can be found
@@ -24,24 +24,32 @@ set playr_loader_file=%USERPROFILE%/Desktop/playr_loader.html
 
 :: use the url below if you want be able to set the channel to play on your dashboard.
 :: Note: using this setting requires a one time registration of the playback device
-:: using the dashboard (under Settings/Players) 
+:: using the dashboard (under Settings/Players)
 ::
 set channel1=http://play.playr.biz
 set channel2=http://play.playr.biz
 set channel3=http://play.playr.biz
 
-:: change and use the url below if you want to play a specific channel that cannot be 
+:: change and use the url below if you want to play a specific channel that cannot be
 :: changed from your dashboard
-:: Note: add /en, /nl or other language indication before /xxxx to enforce the 
-:: use of the correct locale 
+:: Note: add /en, /nl or other language indication before /xxxx to enforce the
+:: use of the correct locale
 ::
 :: set channel1=http://playr.biz/xxxx/yyyy
 :: set channel2=http://playr.biz/xxxx/zzzz
 :: set channel3=http://playr.biz/xxxx/aaaa
 
-:: Prevent the 
+:: Define the command line options for starting browser
+:: gpu_options="--ignore-gpu-blacklist --enable-experimental-canvas-features --enable-gpu-rasterization --enable-threaded-gpu-rasterization"
+::
+set gpu_options=
+set persistency_options=
+:: --disable-session-crashed-bubble has been deprecated since v57 at the latest
+set no_nagging_options=--disable-translate --no-first-run --no-default-browser-check --disable-infobars --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-session-crashed-bubble
+
+:: Prevent the
 :: "Google Chrome didn't shut down correctly"
-:: warning when restarting after a crash of Windows, power outage or 
+:: warning when restarting after a crash of Windows, power outage or
 :: other non standard way to end Windows.
 :: Choose one of the following options. The first only deletes one file
 :: the second option deletes all browser data such as cached videos. The
@@ -56,7 +64,7 @@ del "%USERPROFILE%\AppData\Local\Chromium\User Data\Default\Preferences" /Q
 
 :: change the paths below to point at the different chrome.exe's that are installed on your computer
 :: you can find the path to the chrome.exe by right clicking the (desktop) icon  of Chrome/Chrome Canary/Chromium, choosing properties
-:: and looking in the Target field 
+:: and looking in the Target field
 ::
 set google_chrome_path="C:\Program Files\Google\Chrome\Application\chrome.exe"
 :: set google_chrome_path="C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
@@ -65,7 +73,7 @@ set chromium_path="C:\Program Files\Chromium\chrome.exe"
 :: set chromium_path="C:\Program Files (x86)\Chromium\chrome.exe"
 
 :: The window positions specified below will work when you use three 1080p screens (1920x1080)
-:: If you use screens with a different resolution you may need to change the values below. 
+:: If you use screens with a different resolution you may need to change the values below.
 ::
 screen_position1=50,20
 screen_position2=2000,20
@@ -76,6 +84,6 @@ screen_position3=4000,20
 setlocal enabledelayedexpansion
 set replace=%%20
 set playr_loader_file_normalized=%playr_loader_file: =!replace!%
-start /min cmd /c "%google_chrome_path% --chrome-frame --no-first-run --no-default-browser-check --disable-translate --window-position=%screen_position1% --disable-session-crashed-bubble --kiosk file:///%playr_loader_file_normalized%?channel=%channel1%"
-start /min cmd /c "%chromium_path% --chrome-frame --no-first-run --no-default-browser-check --disable-translate --window-position=%screen_position2% --disable-session-crashed-bubble --kiosk file:///%playr_loader_file_normalized%?channel=%channel2%"
-start /min cmd /c "%google_chrome_canary_path% --chrome-frame --no-first-run --no-default-browser-check --disable-translate --window-position=%screen_position3% --disable-session-crashed-bubble --kiosk file:///%playr_loader_file_normalized%?channel=%channel3%"
+start /min cmd /c "%google_chrome_path% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position1% --kiosk file:///%playr_loader_file_normalized%?channel=%channel1%"
+start /min cmd /c "%chromium_path% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position2% --kiosk file:///%playr_loader_file_normalized%?channel=%channel2%"
+start /min cmd /c "%google_chrome_canary_path% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position3% --kiosk file:///%playr_loader_file_normalized%?channel=%channel3%"

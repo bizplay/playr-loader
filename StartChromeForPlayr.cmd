@@ -24,40 +24,58 @@ set playr_loader_file=%USERPROFILE%/Desktop/playr_loader.html
 
 :: use the url below if you want be able to set the channel to play on your dashboard.
 :: Note: using this setting requires a one time registration of the playback device
-:: using the dashboard (under Settings/Players) 
+:: using the dashboard (under Settings/Players)
 ::
 set channel=http://play.playr.biz
 
-:: change and use the url below if you want to play a specific channel that cannot be 
+:: change and use the url below if you want to play a specific channel that cannot be
 :: changed from your dashboard
-:: Note: add /en, /nl or other language indication before /xxxx to enforce the 
-:: use of the correct locale 
+:: Note: add /en, /nl or other language indication before /xxxx to enforce the
+:: use of the correct locale
 ::
 :: set channel=http://playr.biz/xxxx/yyyy
 
-:: Prevent the 
+:: Define the command line options for starting browser
+:: gpu_options="--ignore-gpu-blacklist --enable-experimental-canvas-features --enable-gpu-rasterization --enable-threaded-gpu-rasterization"
+::
+set gpu_options=
+set persistency_options=
+:: --disable-session-crashed-bubble has been deprecated since v57 at the latest
+set no_nagging_options=--disable-translate --no-first-run --no-default-browser-check --disable-infobars --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-session-crashed-bubble
+
+:: Prevent the
 :: "Google Chrome didn't shut down correctly"
-:: warning when restarting after a crash of Windows, power outage or 
+:: warning when restarting after a crash of Windows, power outage or
 :: other non standard way to end Windows.
 :: Choose one of the following options. The first only deletes one file
 :: the second option deletes all browser data such as cached videos. The
 :: second option should only be used on devices that have very little disk space
+::
 del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\Preferences" /Q
 :: del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\" /S /Q
+::
+:: when using Chromium use the following lines
+::
+:: del "%USERPROFILE%\AppData\Local\Chromium\User Data\Default\Preferences" /Q
+:: del "%USERPROFILE%\AppData\Local\Chromium\User Data\Default\" /S /Q
 
 :: The code below should work as is and should not require any changes
 ::
 setlocal enabledelayedexpansion
 set replace=%%20
 set playr_loader_file_normalized=%playr_loader_file: =!replace!%
-if exist "C:\Program Files\Google\Chrome\Application\chrome.exe" (
-  "C:\Program Files\Google\Chrome\Application\chrome.exe" --no-first-run --no-default-browser-check --disable-translate --disable-session-crashed-bubble --kiosk "file:///%playr_loader_file_normalized%?channel=%channel%"
-) else (
-  "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" --no-first-run --no-default-browser-check --disable-translate --disable-session-crashed-bubble --kiosk "file:///%playr_loader_file_normalized%?channel=%channel%"
-)
 
-:: Older version of Chrome were installed in the AppData folder of a specific user, 
-:: if the above code does not work you may consider using the line below instead of 
+:: when using Chromium replace the path to the chrome.exe with
+:: "%USERPROFILE%\AppData\Local\Chromium\Application\chrome.exe"
+::
+if exist "C:\Program Files\Google\Chrome\Application\chrome.exe" (
+  "C:\Program Files\Google\Chrome\Application\chrome.exe" %gpu_options% %persistency_options% %no_nagging_options% --kiosk "file:///%playr_loader_file_normalized%?channel=%channel%"
+) else (
+  "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" %gpu_options% %persistency_options% %no_nagging_options% --kiosk "file:///%playr_loader_file_normalized%?channel=%channel%"
+)
+::
+:: Older version of Chrome were installed in the AppData folder of a specific user,
+:: if the above code does not work you may consider using the line below instead of
 :: the lines above that assume Chrome is installed in the Program Files directory
 ::
-::"%USERPROFILE%\AppData\Local\Google\Chrome\Application\chrome.exe" --disable-first-run-ui --no-default-browser-check --disable-translate --kiosk "file:///%playr_loader_file_normalized%?channel=%channel%"
+::"%USERPROFILE%\AppData\Local\Google\Chrome\Application\chrome.exe" %gpu_options% %persistency_options% %no_nagging_options% --kiosk "file:///%playr_loader_file_normalized%?channel=%channel%"
