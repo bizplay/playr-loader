@@ -16,17 +16,15 @@
   </style>
 
   <script type="text/javascript" charset="utf-8">
-    var tryCountdown;
+    var intervalHandle;
 
     var loadPlayer = function() {
       "use strict";
       if (!checkForChannelParameter()) { return false; }
 
-      // Added Date param to bypass cache
-      var url = "http://www.playr.biz/playr_loader_test_image.png?" + escape(new Date());
-      var onLoad = "gotoPlayer();";
-      var onError = "retryLoading();";
-      document.getElementById("loaderImage").innerHTML = '<img id="remote_img" src="' + url + '" onload="' + onLoad + '" onerror="' + onError + '"/>';
+      // Append Date param to ensure cache bypass (validate='always' indicates cache shoudl not be used)
+      var url = "http://www.playr.biz/playr_loader_test_image.png?" + escape(new Date().getTime());
+      document.getElementById("loaderImage").innerHTML = '<img id="remote_img" src="' + url + '" validate="always" onload="gotoPlayer(event);" onerror="retryLoading(event);"/>';
     };
 
     var checkForChannelParameter = function() {
@@ -38,7 +36,7 @@
       return true;
     };
 
-    var gotoPlayer = function() {
+    var gotoPlayer = function(event) {
       "use strict";
       // ignore the reload_url potentially present in the queryString
       var channel_url = queryString.channel;
@@ -50,18 +48,18 @@
       window.location = channel_url;
     };
 
-    var retryLoading = function() {
+    var retryLoading = function(event) {
       "use strict";
       var countdown = 10;
       document.getElementById("retry_message").style.display = "block";
 
-      if (tryCountdown > 0) { clearInterval(tryCountdown); }
-      tryCountdown = setInterval(function() {
+      if (intervalHandle > 0) { clearInterval(intervalHandle); }
+      intervalHandle = setInterval(function() {
         if (countdown >= 0) {
           document.getElementById("seconds").innerHTML = countdown;
           countdown = countdown - 1;
         } else {
-          clearInterval(tryCountdown);
+          clearInterval(intervalHandle);
           window.location.reload();
         }
       }, 1000);
