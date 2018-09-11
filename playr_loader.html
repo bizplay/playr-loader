@@ -40,6 +40,20 @@
             showStatus("Loading", "status=" + request.readyState.toString(), "info");
           }
         }
+        // not available in older XMLHttpRequest version 1 (IE9 and before)
+        // request.onerror = function () {
+        //   showStatus("Error", "code=onerror", "error");
+        //   retryLoading();
+        // };
+        // request.onabort = function () {
+        //   showStatus("Error", "code=onabort", "error");
+        //   retryLoading();
+        // };
+        // xhr.ontimeout = function () {
+        //   showStatus("Error", "event=ontimeout", "error");
+        //   retryLoading();
+        // };
+
         request.open("GET", url, true); // true to make the call async
         request.send();
       } catch (exception) {
@@ -125,17 +139,17 @@
     };
 
     function showStatus(name, message, level) {
-      if (level !== undefined && level === 'error') {
-        document.getElementById("status").innerHTML = '<p>Could not' +
-          ' connect to signage service.</p>' +
-          ' Does this device have a network connection or could' +
-          ' the internet connection be down? Please check your' +
-          ' network or restart this device.' +
+      if (level !== undefined && level === "error") {
+        document.getElementById("status").innerHTML = "<p>Could not" +
+          " connect to signage service.</p>" +
+          " Does this device have a network connection or could" +
+          " the internet connection be down? Please check your" +
+          " network or restart this device." +
           ' <p><div id="exception_message">' + name +
-          ': ' + message + '</div></p>'
+          ": " + message + "</div></p>"
       } else {
         document.getElementById("status").innerHTML = '<p><div id="exception_message">' + name +
-          ': ' + message + '</div></p>'
+          ": " + message + "</div></p>"
       }
       document.getElementById("status").style.display = "block";
     };
