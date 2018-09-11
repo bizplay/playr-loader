@@ -34,16 +34,17 @@
               gotoPlayer();
             } else {
               showStatus("Error", "code=" + request.status.toString(), "error");
+              retryLoading();
             }
           } else {
             showStatus("Loading", "status=" + request.readyState.toString(), "info");
           }
-          retryLoading();
         }
         request.open("GET", url, true); // true to make the call async
         request.send();
       } catch (exception) {
         showStatus(exception.name, exception.message, "error");
+        retryLoading();
       }
     };
 
@@ -142,7 +143,7 @@
 </head>
 <body onload="loadPlayer();">
   <div id="ajax_loader"></div>
-  <div id="info">Could your internet connection be down?</div>
+  <div id="info"></div>
   <div id="countdown"><br><br><p>Retrying in <span id="seconds">0</span> seconds...</p></div>
   <div id="missing_channel_parameter"><p>The channel url is missing.</p><p>Please make sure the web address of this page ends with "?channel=http://play.playr.biz" or the url of your channel.</p></div>
 </body>
