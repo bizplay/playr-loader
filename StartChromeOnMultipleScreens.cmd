@@ -70,7 +70,8 @@ del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\%user3%\Preferences" /Q
 
 :: change the paths below to point at the different chrome.exe's that are installed on your computer
 :: you can find the path to the chrome.exe by right clicking the (desktop) icon  of Chrome/Chrome Canary/Chromium, choosing properties
-:: and looking in the Target field
+:: and looking in the Target field.
+:: the code below should work after a normal installation of Google Chrome
 ::
 if exist %ProgramFiles%\Google\Chrome\Application\chrome.exe (
   set google_chrome_path="%ProgramFiles%\Google\Chrome\Application\chrome.exe"
