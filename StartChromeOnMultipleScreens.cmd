@@ -30,6 +30,12 @@ set channel1=http://play.playr.biz
 set channel2=http://play.playr.biz
 set channel3=http://play.playr.biz
 
+:: use three different user profiles to enable starting/running three instances
+:: of the Chrome browser at the same time
+set user1=Screen1
+set user2=Screen2
+set user3=Screen3
+
 :: change and use the url below if you want to play a specific channel that cannot be
 :: changed from your dashboard
 :: Note: add /en, /nl or other language indication before /xxxx to enforce the
@@ -44,7 +50,7 @@ set channel3=http://play.playr.biz
 ::
 set gpu_options=
 set persistency_options=
-:: --disable-session-crashed-bubble has been deprecated since v57 at the latest
+:: --disable-session-crashed-bubble has been deprecated since v57 of Chrome
 set no_nagging_options=--disable-translate --no-first-run --no-default-browser-check --disable-infobars --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-session-crashed-bubble
 
 :: Prevent the
@@ -55,22 +61,23 @@ set no_nagging_options=--disable-translate --no-first-run --no-default-browser-c
 :: the second option deletes all browser data such as cached videos. The
 :: second option should only be used on devices that have very little disk space
 ::
-del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\Preferences" /Q
-:: del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\" /S /Q
-del "%USERPROFILE%\AppData\Local\Google\Chrome SxS\User Data\Default\Preferences" /Q
-:: del "%USERPROFILE%\AppData\Local\Google\Chrome SxS\User Data\Default\" /S /Q
-del "%USERPROFILE%\AppData\Local\Chromium\User Data\Default\Preferences" /Q
-:: del "%USERPROFILE%\AppData\Local\Chromium\User Data\Default\" /S /Q
+del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\%user1%\Preferences" /Q
+:: del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\%user1%\" /S /Q
+del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\%user2%\Preferences" /Q
+:: del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\%user2%\" /S /Q
+del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\%user3%\Preferences" /Q
+:: del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\%user3%\" /S /Q
 
 :: change the paths below to point at the different chrome.exe's that are installed on your computer
 :: you can find the path to the chrome.exe by right clicking the (desktop) icon  of Chrome/Chrome Canary/Chromium, choosing properties
 :: and looking in the Target field
 ::
-set google_chrome_path="C:\Program Files\Google\Chrome\Application\chrome.exe"
-:: set google_chrome_path="C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
-set google_chrome_canary_path="%USERPROFILE%\AppData\Local\Google\Chrome SxS\Application\chrome.exe"
-set chromium_path="C:\Program Files\Chromium\chrome.exe"
-:: set chromium_path="C:\Program Files (x86)\Chromium\chrome.exe"
+if exist %ProgramFiles%\Google\Chrome\Application\chrome.exe (
+  set google_chrome_path="%ProgramFiles%\Google\Chrome\Application\chrome.exe"
+
+) else (
+  set google_chrome_path="%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
+)
 
 :: The window positions specified below will work when you use three 1080p screens (1920x1080)
 :: If you use screens with a different resolution you may need to change the values below.
@@ -84,6 +91,6 @@ screen_position3=4000,20
 setlocal enabledelayedexpansion
 set replace=%%20
 set playr_loader_file_normalized=%playr_loader_file: =!replace!%
-start /min cmd /c "%google_chrome_path% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position1% --kiosk file:///%playr_loader_file_normalized%?channel=%channel1%"
-start /min cmd /c "%chromium_path% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position2% --kiosk file:///%playr_loader_file_normalized%?channel=%channel2%"
-start /min cmd /c "%google_chrome_canary_path% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position3% --kiosk file:///%playr_loader_file_normalized%?channel=%channel3%"
+start /min cmd /c "%google_chrome_path% --profile-directory=%user1% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position1% --kiosk file:///%playr_loader_file_normalized%?channel=%channel1%"
+start /min cmd /c "%google_chrome_path% --profile-directory=%user2% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position2% --kiosk file:///%playr_loader_file_normalized%?channel=%channel2%"
+start /min cmd /c "%google_chrome_path% --profile-directory=%user3% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position3% --kiosk file:///%playr_loader_file_normalized%?channel=%channel3%"
