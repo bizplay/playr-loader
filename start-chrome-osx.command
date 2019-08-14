@@ -54,12 +54,7 @@ else
 	reload_url=file://$2
 fi
 
-# another way to prevent "Chrome didn shut down correclty" overlay on the screen
-# NOTE: for Chromium the location of the Preferences file is ~/Library/Application Support/Chromium/Default/Preferences
-sed -i 's/exit_type\"\:\"Crashed/exit_type\"\:\"Normal/g' ~/Library/Application Support/Google/Chrome/Default/Preferences
-sed -i 's/exit_type\"\:\"SessionEnded/exit_type\"\:\"Normal/g' ~/Library/Application Support/Google/Chrome/Default/Preferences
-sed -i 's/exited_cleanly\"\:false/exited_cleanly\"\:true/g' ~/Library/Application Support/Google/Chrome/Default/Preferences
-
 # to check the values of the variables created above uncomment the following line
 # echo "file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}
-open -a "$browser" --args ${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk "file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}
+# the --app= option prevents the "Restore pages" popup from showing up after the previous process was killed
+open -a "$browser" --args ${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app="file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}

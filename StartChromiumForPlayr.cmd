@@ -43,21 +43,11 @@ set persistency_options=
 :: --disable-session-crashed-bubble has been deprecated since v57 at the latest
 set no_nagging_options=--disable-translate --no-first-run --no-default-browser-check --disable-infobars --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-session-crashed-bubble
 
-:: Prevent the
-:: "Google Chrome didn't shut down correctly"
-:: warning when restarting after a crash of Windows, power outage or
-:: other non standard way to end Windows.
-:: Choose one of the following options. The first only deletes one file
-:: the second option deletes all browser data such as cached videos. The
-:: second option should only be used on devices that have very little disk space
-::
-del "%USERPROFILE%\AppData\Local\Chromium\User Data\Default\Preferences" /Q
-del "%USERPROFILE%\AppData\Local\Chromium\User Data\Default" /S /Q
-
 :: The code below should work as is and should not require any changes
 ::
 setlocal enabledelayedexpansion
 set replace=%%20
 set playr_loader_file_normalized=%playr_loader_file: =!replace!%
 
-"%USERPROFILE%\Desktop\Chromium\chrome.exe" %gpu_options% %persistency_options% %no_nagging_options% --kiosk "file:///%playr_loader_file_normalized%?channel=%channel%"
+:: The --app= option prevents the "Restore pages" popup from showing up after the previous process was killed
+"%USERPROFILE%\Desktop\Chromium\chrome.exe" %gpu_options% %persistency_options% %no_nagging_options% --kiosk --app="file:///%playr_loader_file_normalized%?channel=%channel%"
