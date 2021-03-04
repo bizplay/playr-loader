@@ -49,7 +49,7 @@ set no_nagging_options=--disable-translate --no-first-run --no-default-browser-c
 :: other non standard way to end Windows.
 :: Choose one of the following options. The first only deletes one file
 :: the second option deletes all browser data such as cached videos. The
-:: second option should only be used on devices that have very little disk space
+:: second option should only be used on devices that have little disk space
 ::
 del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\Preferences" /Q
 :: del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\" /S /Q
@@ -66,16 +66,18 @@ set replace=%%20
 set playr_loader_file_normalized=%playr_loader_file: =!replace!%
 
 :: when using Chromium replace the path to the chrome.exe with
+:: "C:\Program Files (x86)\Chromium\chrome.exe"
+:: or for older versions of Chromium
 :: "%USERPROFILE%\AppData\Local\Chromium\Application\chrome.exe"
 ::
 if exist "C:\Program Files\Google\Chrome\Application\chrome.exe" (
-  start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" %gpu_options% %persistency_options% %no_nagging_options% --kiosk "file:///%playr_loader_file_normalized%?channel=%channel%"
+  start /min cmd /c "C:\Program Files\Google\Chrome\Application\chrome.exe %gpu_options% %persistency_options% %no_nagging_options% --kiosk file:///%playr_loader_file_normalized%?channel=%channel%"
 ) else (
-  start "" "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" %gpu_options% %persistency_options% %no_nagging_options% --kiosk "file:///%playr_loader_file_normalized%?channel=%channel%"
+  start /min cmd /c "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe %gpu_options% %persistency_options% %no_nagging_options% --kiosk file:///%playr_loader_file_normalized%?channel=%channel%"
 )
 ::
 :: Older version of Chrome were installed in the AppData folder of a specific user,
 :: if the above code does not work you may consider using the line below instead of
 :: the lines above that assume Chrome is installed in the Program Files directory
 ::
-::"%USERPROFILE%\AppData\Local\Google\Chrome\Application\chrome.exe" %gpu_options% %persistency_options% %no_nagging_options% --kiosk "file:///%playr_loader_file_normalized%?channel=%channel%"
+:: start /min cmd /c "%USERPROFILE%\AppData\Local\Google\Chrome\Application\chrome.exe %gpu_options% %persistency_options% %no_nagging_options% --kiosk file:///%playr_loader_file_normalized%?channel=%channel%"
