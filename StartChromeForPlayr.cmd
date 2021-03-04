@@ -69,9 +69,9 @@ set playr_loader_file_normalized=%playr_loader_file: =!replace!%
 :: "%USERPROFILE%\AppData\Local\Chromium\Application\chrome.exe"
 ::
 if exist "C:\Program Files\Google\Chrome\Application\chrome.exe" (
-  "C:\Program Files\Google\Chrome\Application\chrome.exe" %gpu_options% %persistency_options% %no_nagging_options% --kiosk "file:///%playr_loader_file_normalized%?channel=%channel%"
+  start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" %gpu_options% %persistency_options% %no_nagging_options% --kiosk "file:///%playr_loader_file_normalized%?channel=%channel%"
 ) else (
-  "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" %gpu_options% %persistency_options% %no_nagging_options% --kiosk "file:///%playr_loader_file_normalized%?channel=%channel%"
+  start "" "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" %gpu_options% %persistency_options% %no_nagging_options% --kiosk "file:///%playr_loader_file_normalized%?channel=%channel%"
 )
 ::
 :: Older version of Chrome were installed in the AppData folder of a specific user,
