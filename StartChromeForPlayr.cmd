@@ -50,34 +50,56 @@ set no_nagging_options=--disable-translate --no-first-run --no-default-browser-c
 :: Choose one of the following options. The first only deletes one file
 :: the second option deletes all browser data such as cached videos. The
 :: second option should only be used on devices that have little disk space
-::
-del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\Preferences" /Q
+:: to implement the second option replace the three lines inside the following
+:: if clause with this
 :: del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\" /S /Q
-::
-:: when using Chromium use the following lines
-::
-:: del "%USERPROFILE%\AppData\Local\Chromium\User Data\Default\Preferences" /Q
+if exist "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default" (
+  if exist "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\Preferences" (
+    del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\Preferences" /Q
+  )
+)
+:: when using Chromium use one of the two options, see above
 :: del "%USERPROFILE%\AppData\Local\Chromium\User Data\Default\" /S /Q
-
+if exist "%USERPROFILE%\AppData\Local\Chromium\User Data\Default" (
+  if exist "%USERPROFILE%\AppData\Local\Chromium\User Data\Default\Preferences" (
+    del "%USERPROFILE%\AppData\Local\Chromium\User Data\Default\Preferences" /Q
+  )
+)
+::
 :: The code below should work as is and should not require any changes
 ::
 setlocal enabledelayedexpansion
 set replace=%%20
 set playr_loader_file_normalized=%playr_loader_file: =!replace!%
 
-:: when using Chromium replace the path to the chrome.exe with
-:: "C:\Program Files (x86)\Chromium\chrome.exe"
-:: or for older versions of Chromium
-:: "%USERPROFILE%\AppData\Local\Chromium\Application\chrome.exe"
 ::
-if exist "C:\Program Files\Google\Chrome\Application\chrome.exe" (
-  start /min cmd /c "C:\Program Files\Google\Chrome\Application\chrome.exe %gpu_options% %persistency_options% %no_nagging_options% --kiosk file:///%playr_loader_file_normalized%?channel=%channel%"
+:: the code below should work after a 'normal' installation of either Google Chrome or Chromium
+::
+if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
+  set chrome_executable_path="%ProgramFiles%\Google\Chrome\Application\chrome.exe"
 ) else (
-  start /min cmd /c "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe %gpu_options% %persistency_options% %no_nagging_options% --kiosk file:///%playr_loader_file_normalized%?channel=%channel%"
+  if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
+    set chrome_executable_path="%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
+  ) else (
+    if exist "%USERPROFILE%\AppData\Local\Google\Chrome\Application\chrome.exe" (
+      set chrome_executable_path="%USERPROFILE%\AppData\Local\Google\Chrome\Application\chrome.exe"
+    ) else (
+      if exist "%ProgramFiles%\Chromium\chrome.exe" (
+        set chrome_executable_path="%ProgramFiles%\Chromium\chrome.exe"
+      ) else (
+        if exist "%ProgramFiles(x86)%\Chromium\chrome.exe" (
+          set chrome_executable_path="%ProgramFiles(x86)%\Chromium\chrome.exe"
+        ) else (
+          if exist "%USERPROFILE%\AppData\Local\Chromium\Application\chrome.exe" (
+            set chrome_executable_path="%USERPROFILE%\AppData\Local\Chromium\Application\chrome.exe"
+          ) else (
+            :: can't find chrome.exe in the normal places
+            set chrome_executable_path="chrome.exe"
+          )
+        )
+      )
+    )
+  )
 )
-::
-:: Older version of Chrome were installed in the AppData folder of a specific user,
-:: if the above code does not work you may consider using the line below instead of
-:: the lines above that assume Chrome is installed in the Program Files directory
-::
-:: start /min cmd /c "%USERPROFILE%\AppData\Local\Google\Chrome\Application\chrome.exe %gpu_options% %persistency_options% %no_nagging_options% --kiosk file:///%playr_loader_file_normalized%?channel=%channel%"
+:: start chrome from a minimized cmd.exe using the options that were set up above
+start /min cmd /c "%chrome_executable_path% %gpu_options% %persistency_options% %no_nagging_options% --kiosk file:///%playr_loader_file_normalized%?channel=%channel%"
