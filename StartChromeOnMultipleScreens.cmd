@@ -46,8 +46,7 @@ set user3=Screen3
 :: set channel3=http://playr.biz/xxxx/aaaa
 
 :: Define the command line options for starting browser
-:: gpu_options="--ignore-gpu-blacklist --enable-experimental-canvas-features --enable-gpu-rasterization --enable-threaded-gpu-rasterization"
-::
+:: set gpu_options="--ignore-gpu-blocklist --enable-experimental-canvas-features --enable-gpu-rasterization --enable-threaded-gpu-rasterization"
 set gpu_options=
 set persistency_options=
 :: --disable-session-crashed-bubble has been deprecated since v57 of Chrome

@@ -21,8 +21,8 @@
 browser="google-chrome"
 
 # Define the command line options for starting browser
-# gpu_options="--ignore-gpu-blacklist --enable-experimental-canvas-features --enable-gpu-rasterization --enable-threaded-gpu-rasterization"
-gpu_options="--ignore-gpu-blacklist"
+# gpu_options="--ignore-gpu-blocklist --enable-experimental-canvas-features --enable-gpu-rasterization --enable-threaded-gpu-rasterization"
+gpu_options="--ignore-gpu-blocklist"
 persistency_options=""
 # --disable-session-crashed-bubble has been deprecated since v57 at the latest
 no_nagging_options="--disable-translate --no-first-run --no-default-browser-check --disable-infobars --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-session-crashed-bubble"
@@ -30,7 +30,7 @@ no_nagging_options="--disable-translate --no-first-run --no-default-browser-chec
 # The path to the page that will check internet connection
 # before loading the actual signage channel
 # NOTE: check the location of the player_loader.html in the following line
-playr_loader_file="~/playr-loader/playr_loader.html"
+playr_loader_file="$HOME/playr-loader/playr_loader.html"
 
 # The URL that will be played in the browser
 if [[ $1 == "" ]]

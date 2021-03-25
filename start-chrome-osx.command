@@ -21,7 +21,7 @@
 browser="/Applications/Google Chrome.app"
 
 # Define the command line options for starting browser
-# gpu_options="--ignore-gpu-blacklist --enable-experimental-canvas-features --enable-gpu-rasterization --enable-threaded-gpu-rasterization"
+# gpu_options="--ignore-gpu-blocklist --enable-experimental-canvas-features --enable-gpu-rasterization --enable-threaded-gpu-rasterization"
 gpu_options=""
 persistency_options=""
 # --disable-session-crashed-bubble has been deprecated since v57 at the latest

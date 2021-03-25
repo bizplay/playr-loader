@@ -20,8 +20,8 @@
 browser="/usr/bin/chromium-browser"
 
 # Define the command line options for starting browser
-# gpu_options="--ignore-gpu-blacklist --enable-experimental-canvas-features --enable-gpu-rasterization --enable-threaded-gpu-rasterization"
-gpu_options="--ignore-gpu-blacklist"
+# gpu_options="--ignore-gpu-blocklist --enable-experimental-canvas-features --enable-gpu-rasterization --enable-threaded-gpu-rasterization"
+gpu_options="--ignore-gpu-blocklist"
 persistency_options=""
 # --disable-session-crashed-bubble has been deprecated since v57 at the latest
 no_nagging_options="--disable-translate --no-first-run --no-default-browser-check --disable-infobars --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-session-crashed-bubble"
