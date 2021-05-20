@@ -38,39 +38,39 @@ $Searcher.ServerSelection = 3 # Third Party
 # $Searcher.getType()
 
 $Criteria = "IsInstalled=0 and Type='Driver'"
-Write-Host('Searching Driver Updates...') -Fore Green
+Write-Host "Searching Driver Updates..." -Fore Green
 $SearchResult = $Searcher.Search($Criteria)
 $Updates = $SearchResult.Updates
 
 #Show available Drivers
-Write-Host('Updates found:') -Fore Green
+Write-Host "Updates found:" -Fore Green
 $Updates | select Title, DriverModel, DriverVerDate, Driverclass, DriverManufacturer | fl
 
 #Download the Drivers from Microsoft
 $UpdatesToDownload = New-Object -Com Microsoft.Update.UpdateColl
 $updates | % { $UpdatesToDownload.Add($_) | out-null }
 if($UpdatesToDownload -ne $null) {
-    Write-Host('Downloading Drivers')  -Fore Green
+    Write-Host "Downloading Drivers"  -Fore Green
     $UpdatesToDownload | select Title | fl
     $UpdateSession = New-Object -Com Microsoft.Update.Session
     $Downloader = $UpdateSession.CreateUpdateDownloader()
     $Downloader.Updates = $UpdatesToDownload
-    Write-Host('Start Download')  -Fore Green
+    Write-Host "Start Download"  -Fore Green
     $Downloader.Download()
-} else { Write-Host('No drivers to update') -Fore Green }
+} else { Write-Host "No drivers to update" -Fore Green }
 
 #Check if the Drivers are all downloaded and trigger the Installation
 $UpdatesToInstall = New-Object -Com Microsoft.Update.UpdateColl
 $updates | % { if($_.IsDownloaded) { $UpdatesToInstall.Add($_) | out-null } }
 
 if ($UpdatesToInstall -ne $null) {
-    Write-Host('Installing Drivers...')  -Fore Green
+    Write-Host "Installing Drivers..."  -Fore Green
     $Installer = $UpdateSession.CreateUpdateInstaller()
     $Installer.Updates = $UpdatesToInstall
     $InstallationResult = $Installer.Install()
-    if($InstallationResult.RebootRequired) { Write-Host('Reboot required! please reboot now..') -Fore Red
-    } else { Write-Host('Done..') -Fore Green }
-} else { Write-Host('No drivers were installed') -Fore Green }
+    if($InstallationResult.RebootRequired) { Write-Host "Reboot required! please reboot now.." -Fore Red
+    } else { Write-Host "Done.." -Fore Green }
+} else { Write-Host "No drivers were installed" -Fore Green }
 
 
 ##############################################
@@ -113,7 +113,7 @@ if ($PowerSettingsorg.Alias -eq $desiredScheme.Alias) {
     # or by guid:   if ($PowerSettingsorg.Guid -eq $desiredScheme.Guid)
     # or localized: if ($PowerSettingsorg.Name -eq $desiredScheme.Name)
     # or:           if ($desiredScheme.IsActive)
-    Write-Host "++ Power Plan Settings are correct.! ($($PowerSettingsorg.Name))"
+    Write-Host "++ Power Plan Settings are correct.! ($($PowerSettingsorg.Name))"  -Fore Green
 }
 else {
     # set powersettings to High Performance
@@ -121,7 +121,7 @@ else {
     # test if the setting has changed
     $currentPowerGuid = (Powercfg.exe -GETACTIVESCHEME) -replace '.*GUID:\s*([-a-f0-9]+).*', '$1'
     if ($currentPowerGuid -eq $desiredScheme.Guid) {
-        Write-Host "++ Power plan Settings have changed to $($desiredScheme.Name).!"
+        Write-Host "++ Power plan Settings have changed to $($desiredScheme.Name).!" -Fore Green
     }
     else {
         # exit the script here???
@@ -159,19 +159,19 @@ if ((-not (Test-Path -Path $chromeExecutables[0] -PathType Leaf)) -and
         Invoke-WebRequest -Uri $source -OutFile $destination
 
         if (Test-Path -Path $destination -PathType Leaf) {
-            $newProc=([WMICLASS]"\\$_\root\cimv2:win32_Process").Create("C:\temp\npp.6.9.2.Installer.exe /S")
+            $newProc=([WMICLASS]"\\$_\root\cimv2:win32_Process").Create("$destination /S")
 
             If ($newProc.ReturnValue -eq 0) { 
-                Write-Host $_ $newProc.ProcessId 
+                Write-Host "$_ $newProc.ProcessId"  -Fore Green
             } else { 
-                write-host $_ Process create failed with $newProc.ReturnValue 
+                write-host "$_ Process create failed with $newProc.ReturnValue"  -Fore Red
             }
         } else {
             Throw "++ Google Chrome installer application could not be downloaded.!"
         }
     }
     catch {
-        throw $_.Exception.Message
+        Throw $_.Exception.Message
     }
 } else {
     # the file already exists, show the message and do nothing.
@@ -200,7 +200,7 @@ if ((Get-Item -Path "HKLM:\Software\Policies\Google\Chrome\").GetValue("LegacySa
 
 ##############################################
 #
-# Enable setting no passowrd login 
+# Enable setting no password login 
 #
 ##############################################
 if (-Not (Test-Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess")) {
