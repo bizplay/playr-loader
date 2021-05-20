@@ -49,7 +49,7 @@ $Updates | select Title, DriverModel, DriverVerDate, Driverclass, DriverManufact
 #Download the Drivers from Microsoft
 $UpdatesToDownload = New-Object -Com Microsoft.Update.UpdateColl
 $updates | % { $UpdatesToDownload.Add($_) | out-null }
-if($UpdatesToDownload -ne $null) {
+if($null -ne $UpdatesToDownload) {
     Write-Host "Downloading Drivers"  -Fore Green
     $UpdatesToDownload | select Title | fl
     $UpdateSession = New-Object -Com Microsoft.Update.Session
@@ -63,7 +63,7 @@ if($UpdatesToDownload -ne $null) {
 $UpdatesToInstall = New-Object -Com Microsoft.Update.UpdateColl
 $updates | % { if($_.IsDownloaded) { $UpdatesToInstall.Add($_) | out-null } }
 
-if ($UpdatesToInstall -ne $null) {
+if ($null -ne $UpdatesToInstall) {
     Write-Host "Installing Drivers..."  -Fore Green
     $Installer = $UpdateSession.CreateUpdateInstaller()
     $Installer.Updates = $UpdatesToInstall
@@ -149,22 +149,26 @@ $chromeExecutables = @(
     "$env:USERPROFILE\AppData\Local\Google\Chrome\Application\chrome.exe"
 )
 
-if ((-not (Test-Path -Path $chromeExecutables[0] -PathType Leaf)) -and 
+if (("" -ne $env:PROGRAMFILES) -and ("" -ne $env:USERPROFILE) -and
+    (-not (Test-Path -Path $chromeExecutables[0] -PathType Leaf)) -and
     (-not (Test-Path -Path $chromeExecutables[1] -PathType Leaf)) -and
     (-not (Test-Path -Path $chromeExecutables[2] -PathType Leaf))
    ) {
+    # chrome.exe is not present in the normal locations where it would be present of it had been installed
     try {
         Write-Host "Chrome not yet installed. Downloading install file..." -Fore Green
         # Invoke-WebRequest seems to rsult in $null
         Invoke-WebRequest -Uri $source -OutFile $destination
 
         if (Test-Path -Path $destination -PathType Leaf) {
+            Write-Host "Downloaded Chrome installer. Start installation..." -Fore Green
             $newProc=([WMICLASS]"\\$_\root\cimv2:win32_Process").Create("$destination /S")
 
-            If ($newProc.ReturnValue -eq 0) { 
-                Write-Host "$_ $newProc.ProcessId"  -Fore Green
-            } else { 
-                write-host "$_ Process create failed with $newProc.ReturnValue"  -Fore Red
+            If ($newProc.ReturnValue -eq 0) {
+                Write-Host "$_ $newProc.ProcessId" -Fore Green
+                Write-Host "Chrome was successfully installed" -Fore Green
+            } else {
+                write-host "$_ Process create failed with $newProc.ReturnValue" -Fore Red
             }
         } else {
             Throw "++ Google Chrome installer application could not be downloaded.!"
@@ -177,8 +181,6 @@ if ((-not (Test-Path -Path $chromeExecutables[0] -PathType Leaf)) -and
     # the file already exists, show the message and do nothing.
     Write-Host "Chrome already installed." -Fore Green
 }
-
-
 
 ##############################################
 #
@@ -200,7 +202,7 @@ if ((Get-Item -Path "HKLM:\Software\Policies\Google\Chrome\").GetValue("LegacySa
 
 ##############################################
 #
-# Enable setting no password login 
+# Enable setting no password login
 #
 ##############################################
 if (-Not (Test-Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess")) {
@@ -214,4 +216,3 @@ if ((Get-Item -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Password
 } elseif ((Get-Item -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device\").GetValue("DevicePasswordLessBuildVersion") -ne 0) {
         Set-ItemProperty -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device" -Name "DevicePasswordLessBuildVersion" -Value 0x00000000
 }
-
