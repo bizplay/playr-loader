@@ -1,0 +1,2 @@
+@echo off & setlocal
+powershell.exe -noexit "Write-Host 'Enabling Powershell Script execution...'; Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope LocalMachine; if ('Bypass' -eq (Get-ExecutionPolicy -Scope LocalMachine)) {Write-Host '=> Powershell Script execution enabled' -Fore Green} else {Write-Host '=> Unable to enable script execution' -Fore Red}"

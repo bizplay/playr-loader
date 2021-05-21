@@ -1,0 +1,3 @@
+@echo off & setlocal
+powershell.exe -noexit "Write-Host 'Disabling Powershell Script execution...'; Set-ExecutionPolicy -ExecutionPolicy Undefined -Scope LocalMachine; if ('Undefined' -eq (Get-ExecutionPolicy -Scope LocalMachine)) {Write-Host '=> Powershell Script execution disabled' -Fore Green} else {Write-Host '=> Unable to disable script execution' -Fore Red}"
+:: Set-ExecutionPolicy -ExecutionPolicy Undefined -Scope LocalMachine

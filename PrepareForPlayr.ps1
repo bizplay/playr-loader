@@ -68,10 +68,10 @@ $Updates = $SearchResult.Updates
 
 #Show available Drivers
 if(-not ([string]::IsNullOrEmpty($Updates))) {
-    Write-Host "Updates found:" -Fore Green
+    Write-Host "=> Updates found:" -Fore Green
     $Updates | select Title, DriverModel, DriverVerDate, Driverclass, DriverManufacturer | fl
 } else {
-    Write-Host "No third party driver updates found" -Fore Green
+    Write-Host "=> No third party driver updates found" -Fore Green
 }
 
 
@@ -84,7 +84,7 @@ if(-not ([string]::IsNullOrEmpty($UpdatesToDownload))) {
     $UpdateSession = New-Object -Com Microsoft.Update.Session
     $Downloader = $UpdateSession.CreateUpdateDownloader()
     $Downloader.Updates = $UpdatesToDownload
-    Write-Host "Start Download"  -Fore Green
+    Write-Host "=> Start Download"  -Fore Green
     $Downloader.Download()
 
     #Check if the Drivers are all downloaded and trigger the Installation
@@ -92,14 +92,14 @@ if(-not ([string]::IsNullOrEmpty($UpdatesToDownload))) {
     $updates | % { if($_.IsDownloaded) { $UpdatesToInstall.Add($_) | out-null } }
 
     if ($null -ne $UpdatesToInstall) {
-        Write-Host "Installing Drivers..."  -Fore Green
+        Write-Host "=> Installing Drivers..."  -Fore Green
         $Installer = $UpdateSession.CreateUpdateInstaller()
         $Installer.Updates = $UpdatesToInstall
         $InstallationResult = $Installer.Install()
         if($InstallationResult.RebootRequired) { Write-Host "Drivers have been installed. Reboot required! please reboot after this script has finished" -Fore Red
-        } else { Write-Host "Drivers have been installed." -Fore Green }
-    } else { Write-Host "No drivers were installed" -Fore Red }
-} else { Write-Host "No third party drivers to update" -Fore Green }
+        } else { Write-Host "=> Drivers have been installed." -Fore Green }
+    } else { Write-Host "=> No drivers were installed" -Fore Red }
+} else { Write-Host "=> No third party drivers to update" -Fore Green }
 
 
 ###############################################################################
@@ -107,7 +107,7 @@ if(-not ([string]::IsNullOrEmpty($UpdatesToDownload))) {
 # Set power plan to "High performance"
 #
 ###############################################################################
-#
+Write-Host "Making sure the Power Plan is set for best performance:"
 # fill a hashtable with power scheme guids and alias names:
 # Name                                   Value
 # -----                                  -----
@@ -142,7 +142,7 @@ if ($PowerSettingsorg.Alias -eq $desiredScheme.Alias) {
     # or by guid:   if ($PowerSettingsorg.Guid -eq $desiredScheme.Guid)
     # or localized: if ($PowerSettingsorg.Name -eq $desiredScheme.Name)
     # or:           if ($desiredScheme.IsActive)
-    Write-Host "Power Plan Settings are correct: $($PowerSettingsorg.Name)"  -Fore Green
+    Write-Host "=> Power Plan Settings are correct: $($PowerSettingsorg.Name)"  -Fore Green
 }
 else {
     # set powersettings to High Performance
@@ -150,12 +150,12 @@ else {
     # test if the setting has changed
     $currentPowerGuid = (Powercfg.exe -GETACTIVESCHEME) -replace '.*GUID:\s*([-a-f0-9]+).*', '$1'
     if ($currentPowerGuid -eq $desiredScheme.Guid) {
-        Write-Host "Power plan Settings have changed to $($desiredScheme.Name)!" -Fore Green
+        Write-Host "=> Power plan Settings have changed to $($desiredScheme.Name)!" -Fore Green
     }
     else {
         # do not exit the script here
         # Throw "Power plan Settings did not change to $($desiredScheme.Name)!"
-        Write-Host "Power plan Settings did not change to $($desiredScheme.Name)!" -Fore Red
+        Write-Host "=> Power plan Settings did not change to $($desiredScheme.Name)!" -Fore Red
     }
 }
 
@@ -170,7 +170,7 @@ else {
 # https://www.google.com/intl/en/chrome/browser/desktop/index.html?standalone=1
 #
 ###############################################################################
-
+Write-Host "Making sure Google Chrome is installed:"
 $source = 'https://dl.google.com/tag/s/installdataindex=empty/chrome/install/ChromeStandaloneSetup64.exe'
 $destination = "$env:USERPROFILE\Downloads\ChromeStandaloneSetup64.exe"
 # test if Chrome is present
@@ -187,23 +187,23 @@ if (("" -ne $env:PROGRAMFILES) -and ("" -ne $env:USERPROFILE) -and
    ) {
     # chrome.exe is not present in the normal locations where it would be present of it had been installed
     try {
-        Write-Host "Google Chrome not yet installed. Downloading install file..."
+        Write-Host "=> Google Chrome not yet installed. Downloading install file..."
         # Invoke-WebRequest seems to rsult in $null
         Invoke-WebRequest -Uri $source -OutFile $destination
 
         if (Test-Path -Path $destination -PathType Leaf) {
-            Write-Host "Downloaded Google Chrome installer. Start installation..."
+            Write-Host "=> Downloaded Google Chrome installer. Start installation..."
             $newProc=([WMICLASS]"\\$_\root\cimv2:win32_Process").Create("$destination /S")
 
             If ($newProc.ReturnValue -eq 0) {
                 Write-Host "$_ $newProc.ProcessId" -Fore Green
-                Write-Host "Google Chrome was successfully installed" -Fore Green
+                Write-Host "=> Google Chrome was successfully installed" -Fore Green
             } else {
                 write-host "$_ Process create failed with $newProc.ReturnValue" -Fore Red
             }
         } else {
             # Throw "Google Chrome installer application could not be downloaded!"
-            Write-Host "Google Chrome installer application could not be downloaded!" -Fore Red
+            Write-Host "=> Google Chrome installer application could not be downloaded!" -Fore Red
         }
     }
     catch {
@@ -211,7 +211,7 @@ if (("" -ne $env:PROGRAMFILES) -and ("" -ne $env:USERPROFILE) -and
     }
 } else {
     # the file already exists, show the message and do nothing.
-    Write-Host "Google Chrome is already installed." -Fore Green
+    Write-Host "=> Google Chrome is already installed." -Fore Green
 }
 
 ###############################################################################
@@ -228,12 +228,12 @@ if (-Not (Test-Path "HKLM:\Software\Policies\Google\Chrome")) {
 }
 if ((Get-Item -Path "HKLM:\Software\Policies\Google\Chrome\").GetValue("LegacySameSiteCookieBehaviorEnabled") -eq $null) {
     New-ItemProperty -Path "HKLM:\Software\Policies\Google\Chrome" -Name "LegacySameSiteCookieBehaviorEnabled" -Value 0x00000001 -PropertyType Dword
-    Write-Host "Policy was set correctly" -Fore Green
+    Write-Host "=> Policy was set correctly" -Fore Green
 } elseif ((Get-Item -Path "HKLM:\Software\Policies\Google\Chrome\").GetValue("LegacySameSiteCookieBehaviorEnabled") -ne 1) {
     Set-ItemProperty -Path "HKLM:\Software\Policies\Google\Chrome" -Name "LegacySameSiteCookieBehaviorEnabled" -Value 0x00000001
-    Write-Host "Policy was set correctly" -Fore Green
+    Write-Host "=> Policy was set correctly" -Fore Green
 } else {
-    Write-Host "Policy is already set correctly" -Fore Green
+    Write-Host "=> Policy is already set correctly" -Fore Green
 }
 
 ###############################################################################
@@ -250,10 +250,10 @@ if (-Not (Test-Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Password
 }
 if ((Get-Item -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device\").GetValue("DevicePasswordLessBuildVersion") -eq $null) {
     New-ItemProperty -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device" -Name "DevicePasswordLessBuildVersion" -Value 0x00000000 -PropertyType Dword
-    Write-Host "Setting passwordless login is now possible" -Fore Green
+    Write-Host "=> Setting passwordless login is now possible" -Fore Green
 } elseif ((Get-Item -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device\").GetValue("DevicePasswordLessBuildVersion") -ne 0) {
     Set-ItemProperty -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device" -Name "DevicePasswordLessBuildVersion" -Value 0x00000000
-    Write-Host "Setting passwordless login is now possible" -Fore Green
+    Write-Host "=> Setting passwordless login is now possible" -Fore Green
 } else {
-    Write-Host "Setting passwordless login is already possible" -Fore Green
+    Write-Host "=> Setting passwordless login is already possible" -Fore Green
 }
