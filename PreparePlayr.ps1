@@ -67,8 +67,13 @@ $SearchResult = $Searcher.Search($Criteria)
 $Updates = $SearchResult.Updates
 
 #Show available Drivers
-Write-Host "Updates found:" -Fore Green
-$Updates | select Title, DriverModel, DriverVerDate, Driverclass, DriverManufacturer | fl
+if(-not ([string]::IsNullOrEmpty($Updates))) {
+    Write-Host "Updates found:" -Fore Green
+    $Updates | select Title, DriverModel, DriverVerDate, Driverclass, DriverManufacturer | fl
+} else {
+    Write-Host "No third party driver updates found" -Fore Green
+}
+
 
 #Download the Drivers from Microsoft
 $UpdatesToDownload = New-Object -Com Microsoft.Update.UpdateColl
@@ -137,7 +142,7 @@ if ($PowerSettingsorg.Alias -eq $desiredScheme.Alias) {
     # or by guid:   if ($PowerSettingsorg.Guid -eq $desiredScheme.Guid)
     # or localized: if ($PowerSettingsorg.Name -eq $desiredScheme.Name)
     # or:           if ($desiredScheme.IsActive)
-    Write-Host "Power Plan Settings are correct. ($($PowerSettingsorg.Name))"  -Fore Green
+    Write-Host "Power Plan Settings are correct: $($PowerSettingsorg.Name)"  -Fore Green
 }
 else {
     # set powersettings to High Performance
@@ -145,7 +150,7 @@ else {
     # test if the setting has changed
     $currentPowerGuid = (Powercfg.exe -GETACTIVESCHEME) -replace '.*GUID:\s*([-a-f0-9]+).*', '$1'
     if ($currentPowerGuid -eq $desiredScheme.Guid) {
-        Write-Host "Power plan Settings have changed to $($desiredScheme.Name).!" -Fore Green
+        Write-Host "Power plan Settings have changed to $($desiredScheme.Name)!" -Fore Green
     }
     else {
         # do not exit the script here
@@ -182,17 +187,17 @@ if (("" -ne $env:PROGRAMFILES) -and ("" -ne $env:USERPROFILE) -and
    ) {
     # chrome.exe is not present in the normal locations where it would be present of it had been installed
     try {
-        Write-Host "Chrome not yet installed. Downloading install file..." -Fore Green
+        Write-Host "Google Chrome not yet installed. Downloading install file..." -Fore Green
         # Invoke-WebRequest seems to rsult in $null
         Invoke-WebRequest -Uri $source -OutFile $destination
 
         if (Test-Path -Path $destination -PathType Leaf) {
-            Write-Host "Downloaded Chrome installer. Start installation..." -Fore Green
+            Write-Host "Downloaded Google Chrome installer. Start installation..." -Fore Green
             $newProc=([WMICLASS]"\\$_\root\cimv2:win32_Process").Create("$destination /S")
 
             If ($newProc.ReturnValue -eq 0) {
                 Write-Host "$_ $newProc.ProcessId" -Fore Green
-                Write-Host "Chrome was successfully installed" -Fore Green
+                Write-Host "Google Chrome was successfully installed" -Fore Green
             } else {
                 write-host "$_ Process create failed with $newProc.ReturnValue" -Fore Red
             }
@@ -206,7 +211,7 @@ if (("" -ne $env:PROGRAMFILES) -and ("" -ne $env:USERPROFILE) -and
     }
 } else {
     # the file already exists, show the message and do nothing.
-    Write-Host "Chrome already installed." -Fore Green
+    Write-Host "Google Chrome is already installed." -Fore Green
 }
 
 ###############################################################################
