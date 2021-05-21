@@ -73,7 +73,7 @@ $Updates | select Title, DriverModel, DriverVerDate, Driverclass, DriverManufact
 #Download the Drivers from Microsoft
 $UpdatesToDownload = New-Object -Com Microsoft.Update.UpdateColl
 $updates | % { $UpdatesToDownload.Add($_) | out-null }
-if($null -ne $UpdatesToDownload) {
+if(-not ([string]::IsNullOrEmpty($UpdatesToDownload))) {
     Write-Host "Downloading Drivers"  -Fore Green
     $UpdatesToDownload | select Title | fl
     $UpdateSession = New-Object -Com Microsoft.Update.Session
@@ -81,20 +81,20 @@ if($null -ne $UpdatesToDownload) {
     $Downloader.Updates = $UpdatesToDownload
     Write-Host "Start Download"  -Fore Green
     $Downloader.Download()
+
+    #Check if the Drivers are all downloaded and trigger the Installation
+    $UpdatesToInstall = New-Object -Com Microsoft.Update.UpdateColl
+    $updates | % { if($_.IsDownloaded) { $UpdatesToInstall.Add($_) | out-null } }
+
+    if ($null -ne $UpdatesToInstall) {
+        Write-Host "Installing Drivers..."  -Fore Green
+        $Installer = $UpdateSession.CreateUpdateInstaller()
+        $Installer.Updates = $UpdatesToInstall
+        $InstallationResult = $Installer.Install()
+        if($InstallationResult.RebootRequired) { Write-Host "Drivers have been installed. Reboot required! please reboot after this script has finished" -Fore Red
+        } else { Write-Host "Drivers have been installed." -Fore Green }
+    } else { Write-Host "No drivers were installed" -Fore Red }
 } else { Write-Host "No drivers to update" -Fore Green }
-
-#Check if the Drivers are all downloaded and trigger the Installation
-$UpdatesToInstall = New-Object -Com Microsoft.Update.UpdateColl
-$updates | % { if($_.IsDownloaded) { $UpdatesToInstall.Add($_) | out-null } }
-
-if ($null -ne $UpdatesToInstall) {
-    Write-Host "Installing Drivers..."  -Fore Green
-    $Installer = $UpdateSession.CreateUpdateInstaller()
-    $Installer.Updates = $UpdatesToInstall
-    $InstallationResult = $Installer.Install()
-    if($InstallationResult.RebootRequired) { Write-Host "Reboot required! please reboot now.." -Fore Red
-    } else { Write-Host "Done.." -Fore Green }
-} else { Write-Host "No drivers were installed" -Fore Green }
 
 
 ###############################################################################
