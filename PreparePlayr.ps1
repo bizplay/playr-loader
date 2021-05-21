@@ -62,7 +62,7 @@ $Searcher.ServerSelection = 3 # Third Party
 # $Searcher.getType()
 
 $Criteria = "IsInstalled=0 and Type='Driver'"
-Write-Host "Searching Driver Updates..." -Fore Green
+Write-Host "Searching Driver Updates..."
 $SearchResult = $Searcher.Search($Criteria)
 $Updates = $SearchResult.Updates
 
@@ -99,7 +99,7 @@ if(-not ([string]::IsNullOrEmpty($UpdatesToDownload))) {
         if($InstallationResult.RebootRequired) { Write-Host "Drivers have been installed. Reboot required! please reboot after this script has finished" -Fore Red
         } else { Write-Host "Drivers have been installed." -Fore Green }
     } else { Write-Host "No drivers were installed" -Fore Red }
-} else { Write-Host "No drivers to update" -Fore Green }
+} else { Write-Host "No third party drivers to update" -Fore Green }
 
 
 ###############################################################################
@@ -187,12 +187,12 @@ if (("" -ne $env:PROGRAMFILES) -and ("" -ne $env:USERPROFILE) -and
    ) {
     # chrome.exe is not present in the normal locations where it would be present of it had been installed
     try {
-        Write-Host "Google Chrome not yet installed. Downloading install file..." -Fore Green
+        Write-Host "Google Chrome not yet installed. Downloading install file..."
         # Invoke-WebRequest seems to rsult in $null
         Invoke-WebRequest -Uri $source -OutFile $destination
 
         if (Test-Path -Path $destination -PathType Leaf) {
-            Write-Host "Downloaded Google Chrome installer. Start installation..." -Fore Green
+            Write-Host "Downloaded Google Chrome installer. Start installation..."
             $newProc=([WMICLASS]"\\$_\root\cimv2:win32_Process").Create("$destination /S")
 
             If ($newProc.ReturnValue -eq 0) {
@@ -219,7 +219,7 @@ if (("" -ne $env:PROGRAMFILES) -and ("" -ne $env:USERPROFILE) -and
 # Set Chrome cookie policy
 #
 ###############################################################################
-Write-Host "Setting Chrome cookie policy" -Fore Green
+Write-Host "Setting Google Chrome cookie policy:"
 if (-Not (Test-Path "HKLM:\Software\Policies\Google")) {
     New-Item -Path "HKLM:\Software\Policies" -Name "Google"
 }
@@ -228,8 +228,12 @@ if (-Not (Test-Path "HKLM:\Software\Policies\Google\Chrome")) {
 }
 if ((Get-Item -Path "HKLM:\Software\Policies\Google\Chrome\").GetValue("LegacySameSiteCookieBehaviorEnabled") -eq $null) {
     New-ItemProperty -Path "HKLM:\Software\Policies\Google\Chrome" -Name "LegacySameSiteCookieBehaviorEnabled" -Value 0x00000001 -PropertyType Dword
+    Write-Host "Policy was set correctly" -Fore Green
 } elseif ((Get-Item -Path "HKLM:\Software\Policies\Google\Chrome\").GetValue("LegacySameSiteCookieBehaviorEnabled") -ne 1) {
-        Set-ItemProperty -Path "HKLM:\Software\Policies\Google\Chrome" -Name "LegacySameSiteCookieBehaviorEnabled" -Value 0x00000001
+    Set-ItemProperty -Path "HKLM:\Software\Policies\Google\Chrome" -Name "LegacySameSiteCookieBehaviorEnabled" -Value 0x00000001
+    Write-Host "Policy was set correctly" -Fore Green
+} else {
+    Write-Host "Policy is already set correctly" -Fore Green
 }
 
 ###############################################################################
@@ -237,7 +241,7 @@ if ((Get-Item -Path "HKLM:\Software\Policies\Google\Chrome\").GetValue("LegacySa
 # Enable setting no password login
 #
 ###############################################################################
-Write-Host "Enable setting passwordless login" -Fore Green
+Write-Host "Enable setting passwordless login:"
 if (-Not (Test-Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess")) {
     New-Item -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion" -Name "PasswordLess"
 }
@@ -246,6 +250,10 @@ if (-Not (Test-Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Password
 }
 if ((Get-Item -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device\").GetValue("DevicePasswordLessBuildVersion") -eq $null) {
     New-ItemProperty -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device" -Name "DevicePasswordLessBuildVersion" -Value 0x00000000 -PropertyType Dword
+    Write-Host "Setting passwordless login is now possible" -Fore Green
 } elseif ((Get-Item -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device\").GetValue("DevicePasswordLessBuildVersion") -ne 0) {
-        Set-ItemProperty -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device" -Name "DevicePasswordLessBuildVersion" -Value 0x00000000
+    Set-ItemProperty -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device" -Name "DevicePasswordLessBuildVersion" -Value 0x00000000
+    Write-Host "Setting passwordless login is now possible" -Fore Green
+} else {
+    Write-Host "Setting passwordless login is already possible" -Fore Green
 }
