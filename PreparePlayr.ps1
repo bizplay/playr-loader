@@ -1,3 +1,27 @@
+###############################################################################
+###############################################################################
+###
+### LICENSE
+###
+### This batch file is provided to show digital signage content from playr.biz
+### To read more on the purpose of this file and how to use it
+### see the accompanying README.md file or
+### contact your digital signage provider.
+###
+### This file is licensed under the MIT license.
+###
+### THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+### EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+### OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+### NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+### HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+### WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+### FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+### OTHER DEALINGS IN THE SOFTWARE.
+###
+###############################################################################
+###############################################################################
+
 # Steps to prepare for digital signage playback
 # 1 Update drivers
 # 3 Disable auto update (is update in background possible?)
@@ -8,17 +32,17 @@
 # 7 Auto player shutdown ???
 # 8 Disable user login ???
 
-##############################################
+###############################################################################
 #
-# Update drivers
+# Update third party drivers
 #
-##############################################
+# NOTE: Make sure the "Windows update" service is running
+#
 # https://superuser.com/a/1244097
 # more elaborate update scripts: https://github.com/joeypiccola/PSWindowsUpdate
 # detailed information: https://docs.microsoft.com/en-us/archive/blogs/jamesone/managing-windows-update-with-powershell
-
-# NOTE: Make sure the "Windows update" service is running
-
+#
+###############################################################################
 # add "Microsoft Update" as additional Update-Source.
 #$UpdateSvc = New-Object -ComObject Microsoft.Update.ServiceManager
 #$UpdateSvc.AddService2("7971f918-a847-4430-9279-4a52d1efe18d",7,"")
@@ -73,12 +97,12 @@ if ($null -ne $UpdatesToInstall) {
 } else { Write-Host "No drivers were installed" -Fore Green }
 
 
-##############################################
+###############################################################################
 #
-# Disable energy save mode
+# Set power plan to "High performance"
 #
-##############################################
-
+###############################################################################
+#
 # fill a hashtable with power scheme guids and alias names:
 # Name                                   Value
 # -----                                  -----
@@ -113,7 +137,7 @@ if ($PowerSettingsorg.Alias -eq $desiredScheme.Alias) {
     # or by guid:   if ($PowerSettingsorg.Guid -eq $desiredScheme.Guid)
     # or localized: if ($PowerSettingsorg.Name -eq $desiredScheme.Name)
     # or:           if ($desiredScheme.IsActive)
-    Write-Host "++ Power Plan Settings are correct.! ($($PowerSettingsorg.Name))"  -Fore Green
+    Write-Host "Power Plan Settings are correct. ($($PowerSettingsorg.Name))"  -Fore Green
 }
 else {
     # set powersettings to High Performance
@@ -121,32 +145,34 @@ else {
     # test if the setting has changed
     $currentPowerGuid = (Powercfg.exe -GETACTIVESCHEME) -replace '.*GUID:\s*([-a-f0-9]+).*', '$1'
     if ($currentPowerGuid -eq $desiredScheme.Guid) {
-        Write-Host "++ Power plan Settings have changed to $($desiredScheme.Name).!" -Fore Green
+        Write-Host "Power plan Settings have changed to $($desiredScheme.Name).!" -Fore Green
     }
     else {
-        # exit the script here???
-        Throw "++ Power plan Settings did not change to $($desiredScheme.Name).!"
+        # do not exit the script here
+        # Throw "Power plan Settings did not change to $($desiredScheme.Name)!"
+        Write-Host "Power plan Settings did not change to $($desiredScheme.Name)!" -Fore Red
     }
 }
 
 
-##############################################
+###############################################################################
 #
 # Download and install Google Chrome
 #
-##############################################
 # https://dl.google.com/tag/s/installdataindex=empty/chrome/install/ChromeStandaloneSetup64.exe
 # alternatives
 # https://www.google.com/intl/en/chrome/?standalone=1
 # https://www.google.com/intl/en/chrome/browser/desktop/index.html?standalone=1
+#
+###############################################################################
 
 $source = 'https://dl.google.com/tag/s/installdataindex=empty/chrome/install/ChromeStandaloneSetup64.exe'
 $destination = "$env:USERPROFILE\Downloads\ChromeStandaloneSetup64.exe"
 # test if Chrome is present
 $chromeExecutables = @(
-    "$env:PROGRAMFILES\Google\Chrome\Application\chrome.exe"
-    "$env:PROGRAMFILES(86)\Google\Chrome\Application\chrome.exe"
-    "$env:USERPROFILE\AppData\Local\Google\Chrome\Application\chrome.exe"
+    "$Env:PROGRAMFILES\Google\Chrome\Application\chrome.exe"
+    "${Env:PROGRAMFILES(x86)}\Google\Chrome\Application\chrome.exe"
+    "$Env:USERPROFILE\AppData\Local\Google\Chrome\Application\chrome.exe"
 )
 
 if (("" -ne $env:PROGRAMFILES) -and ("" -ne $env:USERPROFILE) -and
@@ -171,7 +197,8 @@ if (("" -ne $env:PROGRAMFILES) -and ("" -ne $env:USERPROFILE) -and
                 write-host "$_ Process create failed with $newProc.ReturnValue" -Fore Red
             }
         } else {
-            Throw "++ Google Chrome installer application could not be downloaded.!"
+            # Throw "Google Chrome installer application could not be downloaded!"
+            Write-Host "Google Chrome installer application could not be downloaded!" -Fore Red
         }
     }
     catch {
@@ -182,12 +209,12 @@ if (("" -ne $env:PROGRAMFILES) -and ("" -ne $env:USERPROFILE) -and
     Write-Host "Chrome already installed." -Fore Green
 }
 
-##############################################
+###############################################################################
 #
 # Set Chrome cookie policy
 #
-##############################################
-
+###############################################################################
+Write-Host "Setting Chrome cookie policy" -Fore Green
 if (-Not (Test-Path "HKLM:\Software\Policies\Google")) {
     New-Item -Path "HKLM:\Software\Policies" -Name "Google"
 }
@@ -200,11 +227,12 @@ if ((Get-Item -Path "HKLM:\Software\Policies\Google\Chrome\").GetValue("LegacySa
         Set-ItemProperty -Path "HKLM:\Software\Policies\Google\Chrome" -Name "LegacySameSiteCookieBehaviorEnabled" -Value 0x00000001
 }
 
-##############################################
+###############################################################################
 #
 # Enable setting no password login
 #
-##############################################
+###############################################################################
+Write-Host "Enable setting passwordless login" -Fore Green
 if (-Not (Test-Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess")) {
     New-Item -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion" -Name "PasswordLess"
 }
