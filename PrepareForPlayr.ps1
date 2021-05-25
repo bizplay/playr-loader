@@ -189,17 +189,13 @@ if (("" -ne $env:PROGRAMFILES) -and ("" -ne $env:USERPROFILE) -and
     try {
         Write-Host "Google Chrome not yet installed. Downloading install file..." -Fore Yellow
         # Invoke-WebRequest seems to rsult in $null
-        $result = Invoke-WebRequest -Uri $source -OutFile $destination
-        if ($result -eq 0) { 
-            Write-Host "=> Download of Google Chrome installer was successful" -Fore Green
-        } else {
-            Write-Host "=> Download of Google Chrome installer was not successful!" -Fore Red
-        }
+        Invoke-WebRequest -Uri $source -OutFile $destination
 
         if (Test-Path -Path $destination -PathType Leaf) {
             Write-Host "=> Start installation..." -Fore Green
             #$newProc=([WMICLASS]"\\$_\root\cimv2:win32_Process").Create("$destination /S")
-            Start-Process -FilePath $destination
+            #Start-Process -FilePath $destination
+            & $destination
 
             #If ($newProc.ReturnValue -eq 0) {
             if ($LASTEXITCODE -eq 0) {
@@ -209,12 +205,15 @@ if (("" -ne $env:PROGRAMFILES) -and ("" -ne $env:USERPROFILE) -and
                 # write-host "$_ Process create failed with $newProc.ReturnValue" -Fore Red
                 write-host "Google Chrome install failed with $LASTEXITCODE" -Fore Red
             }
+            Remove-Item $destination
         } else {
             # Throw "Google Chrome installer application could not be downloaded!"
             Write-Host "=> Google Chrome installer application could not be downloaded!" -Fore Red
         }
     }
     catch {
+        Write-Host "=> An exception occurred during download or installation of Google Chrome!" -Fore Red
+        Write-Host "=> Exception: $_.Exception.Message" -Fore Red
         Throw $_.Exception.Message
     }
 } else {
