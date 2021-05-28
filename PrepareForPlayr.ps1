@@ -23,14 +23,15 @@
 ###############################################################################
 
 # Steps to prepare for digital signage playback
-# 1 Update drivers
-# 3 Disable auto update (is update in background possible?)
-# 4 Disable energy save mode
-# 2 Install Google Chrome  (use Chrome or Edge automatically)
-# 5 Auto start Chrome
-# 6 Auto player startup???
-# 7 Auto player shutdown ???
-# 8 Disable user login ???
+# v Update third party drivers
+#   Disable auto update or put it to automatic
+# v Disable energy save mode
+# . Install Google Chrome
+# v Set Google Chrome cookie policy
+#   Auto start Chrome
+#   Auto player startup
+#   Auto player shutdown 
+# - Disable user login
 
 ###############################################################################
 #
@@ -44,10 +45,10 @@
 #
 ###############################################################################
 # add "Microsoft Update" as additional Update-Source.
-#$UpdateSvc = New-Object -ComObject Microsoft.Update.ServiceManager
-#$UpdateSvc.AddService2("7971f918-a847-4430-9279-4a52d1efe18d",7,"")
+# $UpdateSvc = New-Object -ComObject Microsoft.Update.ServiceManager
+# $UpdateSvc.AddService2("7971f918-a847-4430-9279-4a52d1efe18d",7,"")
 # overview of all registerred sources
-#(New-Object -ComObject Microsoft.Update.ServiceManager).Services
+# (New-Object -ComObject Microsoft.Update.ServiceManager).Services
 # clean up
 # $updateSvc.Services | ? { $_.IsDefaultAUService -eq $false -and $_.ServiceID -eq "7971f918-a847-4430-9279-4a52d1efe18d" } | % { $UpdateSvc.RemoveService($_.ServiceID) }
 
@@ -170,17 +171,7 @@ else {
 # https://www.google.com/intl/en/chrome/browser/desktop/index.html?standalone=1
 #
 ###############################################################################
-Write-Host "Making sure Google Chrome is installed:"
-# Related URL's that lead to a stand alone installer
-# 'https://dl.google.com/tag/s/appguid={8A69D345-D564-463C-AFF1-A69D9E530F96}&iid={57E47058-9559-70EC-74B5-0ADF68E8696E}&lang=en&browser=3&usagestats=0&appname=Google%20Chrome&needsadmin=prefers&ap=x64-stable-statsdef_1&installdataindex=empty/chrome/install/ChromeStandaloneSetup64.exe'
-# 'https://tools.google.com/service/update2/dlpageping?appguid={8A69D345-D564-463C-AFF1-A69D9E530F96}&iid={1C204C9F-FCAF-B7C5-B462-9F471AEC8EE4}&lang=en&browser=3&usagestats=0&appname=Google%20Chrome&needsadmin=prefers&installdataindex=empty&stage=thankyou&installsource=download'
-# 'https://tools.google.com/service/update2/dlpageping?appguid={8A69D345-D564-463C-AFF1-A69D9E530F96}&iid={582B6214-D1B9-6FB9-59D6-7849BA58D611}&lang=en&browser=4&usagestats=1&appname=Google%20Chrome&needsadmin=prefers&ap=x64-stable-statsdef_1&installdataindex=empty&stage=thankyou&installsource=download'
-# 'https://www.google.com/intl/en/chrome/thank-you.html?standalone=1&statcb=1&installdataindex=empty&defaultbrowser=0#'
-# 'https://www.google.com/intl/en/chrome/thank-you.html?standalone=1&statcb=0&installdataindex=empty&defaultbrowser=0#'
-# 'https://dl.google.com/tag/s/appguid={8A69D345-D564-463C-AFF1-A69D9E530F96}&iid={582B6214-D1B9-6FB9-59D6-7849BA58D611}&lang=en&browser=4&usagestats=0&appname=Google%20Chrome&needsadmin=prefers&ap=x64-stable-statsdef_0&installdataindex=empty/chrome/install/ChromeStandaloneSetup64.exe'
-$source = 'https://dl.google.com/tag/s/installdataindex=empty/chrome/install/ChromeStandaloneSetup64.exe'
-$destination = "$env:USERPROFILE\Downloads\ChromeStandaloneSetup64.exe"
-# test if Chrome is present
+Write-Host "Checking if Google Chrome is installed:"
 $chromeExecutables = @(
     "$Env:PROGRAMFILES\Google\Chrome\Application\chrome.exe"
     "${Env:PROGRAMFILES(x86)}\Google\Chrome\Application\chrome.exe"
@@ -193,41 +184,9 @@ if (("" -ne $env:PROGRAMFILES) -and ("" -ne $env:USERPROFILE) -and
     (-not (Test-Path -Path $chromeExecutables[2] -PathType Leaf))
    ) {
     # chrome.exe is not present in the normal locations where it would be present if it had been installed
-    try {
-        Write-Host "Google Chrome not yet installed. Downloading install file..." -Fore Yellow
-        Invoke-WebRequest -Uri $source -OutFile $destination
-
-        # Invoke-WebRequest results in a $null so we need to test successful download by file presence
-        if (Test-Path -Path $destination -PathType Leaf) {
-            Write-Host "=> Download complete. Start installation..." -Fore Green
-            Write-Host "You will possibly see a warning that you can confirm." -Fore Yellow
-            Write-Host "After that you should see a window of the Google Chrome installer informing you about the status of the installation." -Fore Yellow
-            Write-Host "If this is not the case please go to http://google.com/chrome to download and install Google Chrome manually." -Fore Yellow
-            #$newProc=([WMICLASS]"\\$_\root\cimv2:win32_Process").Create("$destination /S")
-            #Start-Process -FilePath $destination
-            & $destination
-
-            #If ($newProc.ReturnValue -eq 0) {
-            if ($LASTEXITCODE -eq 0) {
-                # Write-Host "$_ $newProc.ProcessId" -Fore Green
-                Write-Host "=> Google Chrome was successfully installed" -Fore Green
-            } else {
-                # write-host "$_ Process create failed with $newProc.ReturnValue" -Fore Red
-                write-host "Google Chrome install failed with $LASTEXITCODE" -Fore Red
-            }
-            Remove-Item $destination
-        } else {
-            # Throw "Google Chrome installer application could not be downloaded!"
-            Write-Host "=> Google Chrome installer application could not be downloaded!" -Fore Red
-        }
-    }
-    catch {
-        Write-Host "=> An exception occurred during download or installation of Google Chrome!" -Fore Red
-        Write-Host "=> Exception: $_.Exception.Message" -Fore Red
-        Throw $_.Exception.Message
-    }
+    Write-Host "Google Chrome not yet installed. Please install it by going to http://google.com/chrome" -Fore Yellow
 } else {
-    # the file already exists, show the message and do nothing.
+    # the file already exists, show message and do nothing.
     Write-Host "=> Google Chrome is already installed." -Fore Green
 }
 
