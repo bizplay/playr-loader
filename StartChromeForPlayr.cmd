@@ -64,6 +64,14 @@ if exist "%USERPROFILE%\AppData\Local\Chromium\User Data\Default" (
     del "%USERPROFILE%\AppData\Local\Chromium\User Data\Default\Preferences" /Q
   )
 )
+:: when using Microsoft Edge use one of the two options, see above
+:: del "%USERPROFILE%\AppData\Local\Chromium\User Data\Default\" /S /Q
+if exist "%USERPROFILE%\AppData\Local\Microsoft\Edge\User Data\Default" (
+  if exist "%USERPROFILE%\AppData\Local\Microsoft\Edge\User Data\Default\Preferences" (
+    del "%USERPROFILE%\AppData\Local\Microsoft\Edge\User Data\Default\Preferences" /Q
+  )
+)
+
 ::
 :: The code below should work as is and should not require any changes
 ::
@@ -75,30 +83,51 @@ set playr_loader_file_normalized=%playr_loader_file: =!replace!%
 :: the code below should work after a 'normal' installation of either Google Chrome or Chromium
 ::
 if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
-  set chrome_executable_path="%ProgramFiles%\Google\Chrome\Application\chrome.exe"
+  set browser_executable="%ProgramFiles%\Google\Chrome\Application\chrome.exe"
 ) else (
   if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
-    set chrome_executable_path="%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
+    set browser_executable="%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
   ) else (
     if exist "%USERPROFILE%\AppData\Local\Google\Chrome\Application\chrome.exe" (
-      set chrome_executable_path="%USERPROFILE%\AppData\Local\Google\Chrome\Application\chrome.exe"
+      set browser_executable="%USERPROFILE%\AppData\Local\Google\Chrome\Application\chrome.exe"
     ) else (
       if exist "%ProgramFiles%\Chromium\chrome.exe" (
-        set chrome_executable_path="%ProgramFiles%\Chromium\chrome.exe"
+        set browser_executable="%ProgramFiles%\Chromium\chrome.exe"
       ) else (
         if exist "%ProgramFiles(x86)%\Chromium\chrome.exe" (
-          set chrome_executable_path="%ProgramFiles(x86)%\Chromium\chrome.exe"
+          set browser_executable="%ProgramFiles(x86)%\Chromium\chrome.exe"
         ) else (
           if exist "%USERPROFILE%\AppData\Local\Chromium\Application\chrome.exe" (
-            set chrome_executable_path="%USERPROFILE%\AppData\Local\Chromium\Application\chrome.exe"
+            set browser_executable="%USERPROFILE%\AppData\Local\Chromium\Application\chrome.exe"
           ) else (
-            :: can't find chrome.exe in the normal places
-            set chrome_executable_path="chrome.exe"
+            :: in case Chrome or Chromium cannot be found => default to Microsoft Edge
+            :: as up to date versions of that are also Blink (Chromium/Chrome redering engine) based
+            if exist "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" (
+              set browser_executable="%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
+            ) else (
+              if exist "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" (
+                set browser_executable="%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"
+              ) else (
+                :: in case even Microsoft Edge cannot be found => default to Microsoft Internet Explorer
+                :: this will certainly not give the best results, command line parameters might give errors
+                if exist "%ProgramFiles%\Internet Explorer\iexplore.exe" (
+                  set browser_executable="%ProgramFiles%\Internet Explorer\iexplore.exe"
+                ) else (
+                  if exist "%ProgramFiles(x86)%\Internet Explorer\iexplore.exe" (
+                    set browser_executable="%ProgramFiles(x86)%\Internet Explorer\iexplore.exe"
+                  ) else (
+                    :: if all else fails
+                    set browser_executable="iexplore.exe"
+                  )
+                )
+              )
+            )
           )
         )
       )
     )
   )
 )
+
 :: start chrome from a minimized cmd.exe using the options that were set up above
-start /min cmd /c "%chrome_executable_path% %gpu_options% %persistency_options% %no_nagging_options% --kiosk file:///%playr_loader_file_normalized%?channel=%channel%"
+start /min cmd /c "%browser_executable% %gpu_options% %persistency_options% %no_nagging_options% --kiosk file:///%playr_loader_file_normalized%?channel=%channel%"
