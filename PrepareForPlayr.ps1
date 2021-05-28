@@ -171,6 +171,13 @@ else {
 #
 ###############################################################################
 Write-Host "Making sure Google Chrome is installed:"
+# Related URL's that lead to a stand alone installer
+# 'https://dl.google.com/tag/s/appguid={8A69D345-D564-463C-AFF1-A69D9E530F96}&iid={57E47058-9559-70EC-74B5-0ADF68E8696E}&lang=en&browser=3&usagestats=0&appname=Google%20Chrome&needsadmin=prefers&ap=x64-stable-statsdef_1&installdataindex=empty/chrome/install/ChromeStandaloneSetup64.exe'
+# 'https://tools.google.com/service/update2/dlpageping?appguid={8A69D345-D564-463C-AFF1-A69D9E530F96}&iid={1C204C9F-FCAF-B7C5-B462-9F471AEC8EE4}&lang=en&browser=3&usagestats=0&appname=Google%20Chrome&needsadmin=prefers&installdataindex=empty&stage=thankyou&installsource=download'
+# 'https://tools.google.com/service/update2/dlpageping?appguid={8A69D345-D564-463C-AFF1-A69D9E530F96}&iid={582B6214-D1B9-6FB9-59D6-7849BA58D611}&lang=en&browser=4&usagestats=1&appname=Google%20Chrome&needsadmin=prefers&ap=x64-stable-statsdef_1&installdataindex=empty&stage=thankyou&installsource=download'
+# 'https://www.google.com/intl/en/chrome/thank-you.html?standalone=1&statcb=1&installdataindex=empty&defaultbrowser=0#'
+# 'https://www.google.com/intl/en/chrome/thank-you.html?standalone=1&statcb=0&installdataindex=empty&defaultbrowser=0#'
+# 'https://dl.google.com/tag/s/appguid={8A69D345-D564-463C-AFF1-A69D9E530F96}&iid={582B6214-D1B9-6FB9-59D6-7849BA58D611}&lang=en&browser=4&usagestats=0&appname=Google%20Chrome&needsadmin=prefers&ap=x64-stable-statsdef_0&installdataindex=empty/chrome/install/ChromeStandaloneSetup64.exe'
 $source = 'https://dl.google.com/tag/s/installdataindex=empty/chrome/install/ChromeStandaloneSetup64.exe'
 $destination = "$env:USERPROFILE\Downloads\ChromeStandaloneSetup64.exe"
 # test if Chrome is present
@@ -185,14 +192,17 @@ if (("" -ne $env:PROGRAMFILES) -and ("" -ne $env:USERPROFILE) -and
     (-not (Test-Path -Path $chromeExecutables[1] -PathType Leaf)) -and
     (-not (Test-Path -Path $chromeExecutables[2] -PathType Leaf))
    ) {
-    # chrome.exe is not present in the normal locations where it would be present of it had been installed
+    # chrome.exe is not present in the normal locations where it would be present if it had been installed
     try {
         Write-Host "Google Chrome not yet installed. Downloading install file..." -Fore Yellow
-        # Invoke-WebRequest seems to rsult in $null
         Invoke-WebRequest -Uri $source -OutFile $destination
 
+        # Invoke-WebRequest results in a $null so we need to test successful download by file presence
         if (Test-Path -Path $destination -PathType Leaf) {
-            Write-Host "=> Start installation..." -Fore Green
+            Write-Host "=> Download complete. Start installation..." -Fore Green
+            Write-Host "You will possibly see a warning that you can confirm." -Fore Yellow
+            Write-Host "After that you should see a window of the Google Chrome installer informing you about the status of the installation." -Fore Yellow
+            Write-Host "If this is not the case please go to http://google.com/chrome to download and install Google Chrome manually." -Fore Yellow
             #$newProc=([WMICLASS]"\\$_\root\cimv2:win32_Process").Create("$destination /S")
             #Start-Process -FilePath $destination
             & $destination
