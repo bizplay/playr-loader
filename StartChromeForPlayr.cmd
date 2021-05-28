@@ -100,23 +100,23 @@ if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
           if exist "%USERPROFILE%\AppData\Local\Chromium\Application\chrome.exe" (
             set browser_executable="%USERPROFILE%\AppData\Local\Chromium\Application\chrome.exe"
           ) else (
-            :: in case Chrome or Chromium cannot be found => default to Microsoft Edge
-            :: as up to date versions of that are also Blink (Chromium/Chrome redering engine) based
+            REM in case Chrome or Chromium cannot be found => default to Microsoft Edge
+            REM as up to date versions of that are also Blink (Chromium/Chrome redering engine) based
             if exist "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" (
               set browser_executable="%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
             ) else (
               if exist "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" (
                 set browser_executable="%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"
               ) else (
-                :: in case even Microsoft Edge cannot be found => default to Microsoft Internet Explorer
-                :: this will certainly not give the best results, command line parameters might give errors
+                REM in case even Microsoft Edge cannot be found => default to Microsoft Internet Explorer
+                REM this will certainly not give the best results, command line parameters might give errors
                 if exist "%ProgramFiles%\Internet Explorer\iexplore.exe" (
                   set browser_executable="%ProgramFiles%\Internet Explorer\iexplore.exe"
                 ) else (
                   if exist "%ProgramFiles(x86)%\Internet Explorer\iexplore.exe" (
                     set browser_executable="%ProgramFiles(x86)%\Internet Explorer\iexplore.exe"
                   ) else (
-                    :: if all else fails
+                    REM if all else fails
                     set browser_executable="iexplore.exe"
                   )
                 )
