@@ -25,12 +25,13 @@
 # Steps to prepare for digital signage playback
 # v Update third party drivers
 #   Disable auto update or put it to automatic
-# v Disable energy save mode
+# v Disable hibernation
+# v Configure 'High performance' power scheme
 # . Install Google Chrome
 # v Set Google Chrome cookie policy
-#   Auto start Chrome
+# v Auto start Chrome/Edge
 #   Auto player startup
-#   Auto player shutdown 
+#   Auto player shutdown
 # - Disable user login
 
 ###############################################################################
@@ -102,6 +103,20 @@ if(-not ([string]::IsNullOrEmpty($UpdatesToDownload))) {
     } else { Write-Host "=> No drivers were installed" -Fore Red }
 } else { Write-Host "=> No third party drivers to update" -Fore Green }
 
+###############################################################################
+#
+# Disable hybernation
+#
+###############################################################################
+Write-Host "Prevent hibernation of this device:"
+# & "start powercfg.exe /HIBERNATE off"
+# & "echo 'Hello allemaal!'"
+Start-Process -NoNewWindow -FilePath "powercfg" -ArgumentList "/HIBERNATE off"
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "=> Turning off system hibernate was successful" -Fore Green
+} else {
+    Write-Host "=> Turning off system hibernate was NOT successful, please turn off hibernation manually" -Fore Red
+}
 
 ###############################################################################
 #
@@ -164,6 +179,9 @@ else {
 ###############################################################################
 #
 # Download and install Google Chrome
+# NOT possible since the standalone installer does not work without manual
+# acceptance of terms of service
+# Therefore check for presence of Chrome and remind to install
 #
 # https://dl.google.com/tag/s/installdataindex=empty/chrome/install/ChromeStandaloneSetup64.exe
 # alternatives
@@ -214,6 +232,40 @@ if ((Get-Item -Path "HKLM:\Software\Policies\Google\Chrome\").GetValue("LegacySa
 
 ###############################################################################
 #
+# Configure auto start of Bizplay playback
+#
+###############################################################################
+Write-Host "Configure auto start of Bizplay playback:"
+if ($env:USERPROFILE) {
+
+    if (-not (Test-Path -Path "$Env:USERPROFILE\Desktop\StartChromeForPlayr.cmd" -PathType Leaf) -and (Test-Path -Path ".\StartChromeForPlayr.cmd" -PathType Leaf)) {
+        Copy-Item -Path ".\StartChromeForPlayr.cmd" -Destination "$Env:USERPROFILE\Desktop\"
+        if (-not (Test-Path -Path "$Env:USERPROFILE\Desktop\playr_loader.html" -PathType Leaf) -and (Test-Path -Path ".\playr_loader.html" -PathType Leaf)) {
+            Copy-Item -Path ".\playr_loader.html" -Destination "$Env:USERPROFILE\Desktop\"
+            Write-Host "Files copied" -Fore Green
+        }
+    }
+
+    $taskName = "Start Chrome for Bizplay"
+    Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue -OutVariable task
+    if (!$task) {
+        $Trigger = New-ScheduledTaskTrigger -AtLogOn -RandomDelay (New-TimeSpan -Seconds 30)
+        $User = "$(whoami)"
+        # $Action= New-ScheduledTaskAction -Execute "cmd.exe" -Argument "$Env:USERPROFILE\Desktop\StartChromeForPlayr.cmd"
+        $Action= New-ScheduledTaskAction -Execute "$Env:USERPROFILE\Desktop\StartChromeForPlayr.cmd"
+        Register-ScheduledTask -TaskName $taskName -Trigger $Trigger -User $User -Action $Action -RunLevel Highest �Force
+        Write-Host "Auto start task created" -Fore Green
+    } else {
+        Write-Host "Auto start task was already present" -Fore Green
+    }
+
+} else {
+    Write-Host "Auto start cound not be configured: destination folder could not be found" -Fore Red
+}
+
+
+###############################################################################
+#
 # Enable setting no password login
 #
 ###############################################################################
@@ -233,3 +285,10 @@ if ((Get-Item -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Password
 } else {
     Write-Host "=> Setting passwordless login is already possible" -Fore Green
 }
+
+###############################################################################
+#
+# Wait for input before ending script execution
+#
+###############################################################################
+$input = Read-Host 'Press enter to continue'
