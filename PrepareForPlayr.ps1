@@ -109,13 +109,11 @@ if(-not ([string]::IsNullOrEmpty($UpdatesToDownload))) {
 #
 ###############################################################################
 Write-Host "Prevent hibernation of this device:"
-# & "start powercfg.exe /HIBERNATE off"
-# & "echo 'Hello allemaal!'"
-Start-Process -NoNewWindow -FilePath "powercfg" -ArgumentList "/HIBERNATE off"
-if ($LASTEXITCODE -eq 0) {
+Start-Process -NoNewWindow -Wait -FilePath "powercfg.exe" -ArgumentList "/HIBERNATE off"
+if ((($LASTEXITCODE -eq 0) -or [string]::IsNullOrEmpty($LASTEXITCODE)) -and ($? -eq $True)) {
     Write-Host "=> Turning off system hibernate was successful" -Fore Green
 } else {
-    Write-Host "=> Turning off system hibernate was NOT successful, please turn off hibernation manually" -Fore Red
+    Write-Host "=> Turning off system hibernate was NOT successful ($LASTEXITCODE/$?), please turn off hibernation manually" -Fore Red
 }
 
 ###############################################################################
@@ -205,7 +203,7 @@ if (("" -ne $env:PROGRAMFILES) -and ("" -ne $env:USERPROFILE) -and
     Write-Host "Google Chrome not yet installed. Please install it by going to http://google.com/chrome" -Fore Yellow
 } else {
     # the file already exists, show message and do nothing.
-    Write-Host "=> Google Chrome is already installed." -Fore Green
+    Write-Host "=> Google Chrome is already installed" -Fore Green
 }
 
 ###############################################################################
@@ -253,7 +251,7 @@ if ($env:USERPROFILE) {
         $User = "$(whoami)"
         # $Action= New-ScheduledTaskAction -Execute "cmd.exe" -Argument "$Env:USERPROFILE\Desktop\StartChromeForPlayr.cmd"
         $Action= New-ScheduledTaskAction -Execute "$Env:USERPROFILE\Desktop\StartChromeForPlayr.cmd"
-        Register-ScheduledTask -TaskName $taskName -Trigger $Trigger -User $User -Action $Action -RunLevel Highest �Force
+        Register-ScheduledTask -TaskName $taskName -Trigger $Trigger -User $User -Action $Action -RunLevel Highest -Force
         Write-Host "Auto start task created" -Fore Green
     } else {
         Write-Host "Auto start task was already present" -Fore Green
