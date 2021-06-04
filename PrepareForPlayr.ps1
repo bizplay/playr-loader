@@ -45,17 +45,17 @@
 # detailed information: https://docs.microsoft.com/en-us/archive/blogs/jamesone/managing-windows-update-with-powershell
 #
 ###############################################################################
-# add "Microsoft Update" as additional Update-Source.
-# $UpdateSvc = New-Object -ComObject Microsoft.Update.ServiceManager
-# $UpdateSvc.AddService2("7971f918-a847-4430-9279-4a52d1efe18d",7,"")
-# overview of all registerred sources
-# (New-Object -ComObject Microsoft.Update.ServiceManager).Services
-# clean up
-# $updateSvc.Services | ? { $_.IsDefaultAUService -eq $false -and $_.ServiceID -eq "7971f918-a847-4430-9279-4a52d1efe18d" } | % { $UpdateSvc.RemoveService($_.ServiceID) }
-
 $continue = $True
 #search and list all missing Drivers
 try {
+    # add "Microsoft Update" as additional Update-Source.
+    $UpdateSvc = New-Object -ComObject Microsoft.Update.ServiceManager
+    $UpdateSvc.AddService2("7971f918-a847-4430-9279-4a52d1efe18d",7,"")
+    # overview of all registerred sources
+    # (New-Object -ComObject Microsoft.Update.ServiceManager).Services
+    # clean up
+    # $updateSvc.Services | ? { $_.IsDefaultAUService -eq $false -and $_.ServiceID -eq "7971f918-a847-4430-9279-4a52d1efe18d" } | % { $UpdateSvc.RemoveService($_.ServiceID) }
+
     $Session = New-Object -ComObject Microsoft.Update.Session
     $Searcher = $Session.CreateUpdateSearcher()
 
@@ -228,10 +228,10 @@ if ($continue) {
     }
     if ((Get-Item -Path "HKLM:\Software\Policies\Google\Chrome\").GetValue("LegacySameSiteCookieBehaviorEnabled") -eq $null) {
         New-ItemProperty -Path "HKLM:\Software\Policies\Google\Chrome" -Name "LegacySameSiteCookieBehaviorEnabled" -Value 0x00000001 -PropertyType Dword
-        Write-Host "=> Policy was set correctly" -Fore Green
+        Write-Host "=> Policy has been set correctly" -Fore Green
     } elseif ((Get-Item -Path "HKLM:\Software\Policies\Google\Chrome\").GetValue("LegacySameSiteCookieBehaviorEnabled") -ne 1) {
         Set-ItemProperty -Path "HKLM:\Software\Policies\Google\Chrome" -Name "LegacySameSiteCookieBehaviorEnabled" -Value 0x00000001
-        Write-Host "=> Policy was set correctly" -Fore Green
+        Write-Host "=> Policy has been set correctly" -Fore Green
     } else {
         Write-Host "=> Policy is already set correctly" -Fore Green
     }
@@ -248,7 +248,7 @@ if ($continue) {
             Copy-Item -Path ".\StartChromeForPlayr.cmd" -Destination "$Env:USERPROFILE\Desktop\"
             if (-not (Test-Path -Path "$Env:USERPROFILE\Desktop\playr_loader.html" -PathType Leaf) -and (Test-Path -Path ".\playr_loader.html" -PathType Leaf)) {
                 Copy-Item -Path ".\playr_loader.html" -Destination "$Env:USERPROFILE\Desktop\"
-                Write-Host "Files copied" -Fore Green
+                Write-Host "=> Files copied" -Fore Green
             }
         }
 
@@ -260,13 +260,13 @@ if ($continue) {
             # $Action= New-ScheduledTaskAction -Execute "cmd.exe" -Argument "$Env:USERPROFILE\Desktop\StartChromeForPlayr.cmd"
             $Action= New-ScheduledTaskAction -Execute "$Env:USERPROFILE\Desktop\StartChromeForPlayr.cmd"
             Register-ScheduledTask -TaskName $taskName -Trigger $Trigger -User $User -Action $Action -RunLevel Highest -Force
-            Write-Host "Auto start task created" -Fore Green
+            Write-Host "=> Auto start task has been created" -Fore Green
         } else {
-            Write-Host "Auto start task was already present" -Fore Green
+            Write-Host "=> Auto start task was already present" -Fore Green
         }
 
     } else {
-        Write-Host "Auto start cound not be configured: destination folder could not be found" -Fore Red
+        Write-Host "=> Auto start could not be configured: destination folder could not be found" -Fore Red
     }
 
 
