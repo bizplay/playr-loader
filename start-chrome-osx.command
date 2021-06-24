@@ -25,7 +25,7 @@ browser="/Applications/Google Chrome.app"
 gpu_options=""
 persistency_options=""
 # --disable-session-crashed-bubble has been deprecated since v57 at the latest
-no_nagging_options="--disable-translate --no-first-run --no-default-browser-check --disable-infobars --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-session-crashed-bubble"
+no_nagging_options="--disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --no-default-browser-check --disable-infobars --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-session-crashed-bubble"
 
 # The path to the page that will check internet connection
 # before loading the actual signage channel

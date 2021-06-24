@@ -50,7 +50,7 @@ set user3=Screen3
 set gpu_options=
 set persistency_options=
 :: --disable-session-crashed-bubble has been deprecated since v57 of Chrome
-set no_nagging_options=--disable-translate --no-first-run --no-default-browser-check --disable-infobars --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-session-crashed-bubble
+set no_nagging_options=--disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --no-default-browser-check --disable-infobars --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-session-crashed-bubble
 
 :: Prevent the
 :: "Google Chrome didn't shut down correctly"
