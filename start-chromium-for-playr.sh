@@ -18,6 +18,11 @@
 
 # Define the browser to use
 browser="/usr/bin/chromium-browser"
+preferences_file="~/.config/chromium/Default/Preferences"
+
+# Prevent popups or additional empty tabs
+sed -i -E 's/("exited_cleanly":\s*)false/\1true/g' $preferences_file
+sed -i -E 's/("exit_type":\s*)"Crashed"/\1"Normal"/g' $preferences_file
 
 # Define the command line options for starting browser
 # gpu_options="--ignore-gpu-blocklist --enable-experimental-canvas-features --enable-gpu-rasterization --enable-threaded-gpu-rasterization"
@@ -33,8 +38,7 @@ execution_path=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 playr_loader_file="${execution_path}/playr_loader.html"
 
 # The URL that will be played in the browser
-if [[ $1 == "" ]]
-then
+if [[ $1 == "" ]]; then
 	# Use the generic URL below for ease of use
 	# or use the channel url that is shown as
 	# 'Playback Address' on your dashboard
@@ -48,8 +52,7 @@ channel=$(echo "$channel" | sed 's:%:%25:g;s:?:%3F:g;s:&:%26:g;s:=:%3D:g;s: :%20
 
 # The path to the player-loader.html file that is used to
 # check the internet connection and start playback
-if [[ $2 == "" ]]
-then
+if [[ $2 == "" ]]; then
 	reload_url=file://${playr_loader_file}
 else
 	reload_url=file://$2
