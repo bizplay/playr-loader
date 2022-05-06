@@ -82,11 +82,12 @@
       document.getElementById("cookie").style.display = "none";
       document.getElementById("ajax_loader").style.display = "none";
       // ignore the reload_url potentially present in the queryString
+      // to prevent repeated concatenation of the reload_url
       var channel_url = queryString.channel;
       if (channel_url.indexOf('?') === -1) {
-        channel_url += "?reload_url=" + escape(window.location);
+        channel_url += (queryString.watchdog_id ? "?watchdog_id=" + queryString.watchdog_id + "&" : "?") + "reload_url=" + escape(window.location);
       } else {
-        channel_url += "&reload_url=" + escape(window.location);
+        channel_url += (queryString.watchdog_id ? "&watchdog_id=" + queryString.watchdog_id : "") + "&reload_url=" + escape(window.location);
       }
       window.location = channel_url;
     };
