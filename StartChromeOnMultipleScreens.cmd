@@ -182,7 +182,7 @@ set reboot_command=1
 :: set default response in case the server does not respond (4xx/5xx status code)
 set response=2
 :: first wait for the player to start properly
-timeout /t %watchdog_interval_in_sec%
+timeout /nobreak /t 30
 
 :WATCHDOG_LOOP
 :: get command from the server
@@ -209,7 +209,7 @@ if "%reboot_command%" == "%watchdog_response%" (
   exit /b 0
 ) else (
   echo Continueing to check for watchdog command...
-  timeout /t %watchdog_interval_in_sec%
+  timeout /nobreak /t %watchdog_interval_in_sec%
   goto WATCHDOG_LOOP
 )
 exit /b 0
