@@ -89,7 +89,7 @@ reboot_machine() {
 }
 
 # Wait to allow the browser to start up properly
-# In most cases it is best if the browser (playback)
+# It is best if the browser (playback)
 # connects to the backend first before this script does to enable
 # the backend to properly initiate the necessary context.
 sleep $one_minute
