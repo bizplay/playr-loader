@@ -50,12 +50,13 @@ fi
 # will be processed correctly by the playr_loader html file
 channel=$(echo "$channel" | sed 's:%:%25:g;s:?:%3F:g;s:&:%26:g;s:=:%3D:g;s: :%20:g;s_:_%3A_g;s:/:%2F:g;s:;:%3B:g;s:@:%40:g;s:+:%2B:g;s:,:%2C:g;s:#:%23:g')
 
-# Retreiving this UUID requires sudo privileges and Raspberry Pi OS is one of the
-# few distro's that allows the following (since sudo does not require a password)
-system_uuid=$(sudo cat /sys/class/dmi/id/product_uuid)
+# Retreiving the device serial number which is specific for Raspberry Pis (other
+# devices offer the system-uuid, but that is not available on the Raspberry Pi
+# since it uses a different type of BIOS)
+system_uuid=$(cat /sys/firmware/devicetree/base/serial-number)
 
 # the --app= option prevents the "Restore pages" popup from showing up after the previous process was killed
-$browser ${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app="file://"${playr_loader_file}"?channel="${channel}"&watchdog_id="${system_uuid}
+$browser ${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app="file://"${playr_loader_file}"?channel="${channel}"&watchdog_id="${system_uuid} &
 
 # SIMPLE WATCHDOG FUNCTIONALITY
 # Server settings
