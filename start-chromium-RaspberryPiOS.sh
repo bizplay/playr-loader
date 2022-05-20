@@ -16,6 +16,15 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
+# Update the system since that will prevent the "updates available"
+# overlay when the Pi starts up. Since all updates that were available
+# for the Pi in the last couple of years have been installed without
+# any problems, it is assumed safe to do this.
+# sudo apt update
+# sudo apt upgrade -y
+# sudo apt full-upgrade -y
+# sudo apt autoremove -y
+
 # Define the browser to use
 browser="/usr/bin/chromium-browser"
 preferences_file="~/.config/chromium/Default/Preferences"
