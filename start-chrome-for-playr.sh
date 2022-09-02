@@ -16,6 +16,13 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
+# Load in linux functions (mac retrieval)
+. ./functions/linux.sh
+
+# Get system ID used in watchdog
+# uses get_first_hardware_mac from the functins/linux.sh helper
+system_uuid=$(get_first_hardware_mac)
+
 # Define the browser to use
 # for Chromium use "/usr/lib/chromium/chromium"
 browser="google-chrome"
@@ -61,4 +68,7 @@ fi
 # to check the values of the variables created above uncomment the following line
 # echo "file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}
 # the --app= option prevents the "Restore pages" popup from showing up after the previous process was killed
-$browser ${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app="file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}
+$browser ${gpu_options} ${persistency_options} ${no_nagging_options} --app="file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}"&watchdog_id="${system_uuid} &
+
+# start watchdog
+./start-linux-watchdog.sh $system_uuid
