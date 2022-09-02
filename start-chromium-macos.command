@@ -16,6 +16,9 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
+# store unique system id found on the OSX machine
+system_uuid=$(ioreg -rd1 -c IOPlatformExpertDevice | awk '/IOPlatformSerialNumber/')
+
 # Define the browser to use
 # NOTE: for Chromium use "/Applications/Chromium.app"
 browser="Chromium.app"
@@ -30,12 +33,11 @@ no_nagging_options="--disable-features=SameSiteByDefaultCookies,CookiesWithoutSa
 # The path to the page that will check internet connection
 # before loading the actual signage channel
 # NOTE: check the location of the player_loader.html in the following line
-execution_path=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+execution_path=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 playr_loader_file="${execution_path}/playr_loader.html"
 
 # The URL that will be played in the browser
-if [[ $1 == "" ]]
-then
+if [[ $1 == "" ]]; then
 	# use the generic URL below for ease of use
 	# or use the channel url that is shown as
 	# 'Playback Address' on your dashboard
@@ -47,8 +49,7 @@ fi
 # and reload_url will be processed correctly by the player_loader_file
 channel=$(echo "$channel" | sed 's:%:%25:g;s:?:%3F:g;s:&:%26:g;s:=:%3D:g;s: :%20:g;s_:_%3A_g;s:/:%2F:g;s:;:%3B:g;s:@:%40:g;s:+:%2B:g;s:,:%2C:g;s:#:%23:g')
 
-if [[ $2 == "" ]]
-then
+if [[ $2 == "" ]]; then
 	# enter the location of the playr-loader.html file
 	reload_url=file://${playr_loader_file}
 else
@@ -58,4 +59,7 @@ fi
 # to check the values of the variables created above uncomment the following line
 # echo "file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}
 # the --app= option prevents the "Restore pages" popup from showing up after the previous process was killed
-open -a "$browser" --args ${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app="file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}
+open -a "$browser" --args ${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app="file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}"&watchdog_id="${system_uuid}
+
+# start watchdog
+./start-linux-watchdog.sh ${system_uuid}
