@@ -36,8 +36,7 @@ no_nagging_options="--disable-features=SameSiteByDefaultCookies,CookiesWithoutSa
 playr_loader_file="~/playr_loader/playr_loader.html"
 
 # The URL that will be played in the browser
-if [[ $1 == "" ]]
-then
+if [[ $1 == "" ]]; then
 	# use the generic URL below for ease of use
 	# or use the channel url that is shown as
 	# 'Playback Address' on your dashboard
@@ -49,8 +48,7 @@ fi
 # and reload_url will be processed correctly by the player_loader_file
 channel=$(echo "$channel" | sed 's:%:%25:g;s:?:%3F:g;s:&:%26:g;s:=:%3D:g;s: :%20:g;s_:_%3A_g;s:/:%2F:g;s:;:%3B:g;s:@:%40:g;s:+:%2B:g;s:,:%2C:g;s:#:%23:g')
 
-if [[ $2 == "" ]]
-then
+if [[ $2 == "" ]]; then
 	# enter the location of the playr-loader.html file
 	reload_url=file://${playr_loader_file}
 else

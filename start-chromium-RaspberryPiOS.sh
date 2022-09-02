@@ -43,7 +43,7 @@ no_nagging_options="--disable-features=SameSiteByDefaultCookies,CookiesWithoutSa
 # The path to the page that will check internet connection
 # before loading the actual signage channel
 # NOTE: check the location of the player_loader.html in the following line
-execution_path=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+execution_path=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 playr_loader_file="${execution_path}/playr_loader.html"
 
 # The URL that will be played in the browser
