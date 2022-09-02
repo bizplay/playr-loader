@@ -16,6 +16,13 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
+# Load in linux functions (mac retrieval)
+. ./functions/linux.sh
+
+# Get system ID used in watchdog
+# uses get_first_hardware_mac from the functins/linux.sh helper
+system_uuid=$(get_first_hardware_mac)
+
 # Define the browser to use
 browser="/usr/bin/chromium-browser"
 preferences_file="~/.config/chromium/Default/Preferences"
@@ -34,7 +41,7 @@ no_nagging_options="--disable-features=SameSiteByDefaultCookies,CookiesWithoutSa
 # The path to the page that will check internet connection
 # before loading the actual signage channel
 # NOTE: check the location of the player_loader.html in the following line
-execution_path=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+execution_path=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 playr_loader_file="${execution_path}/playr_loader.html"
 
 # The URL that will be played in the browser
@@ -61,4 +68,7 @@ fi
 # to check the values of the variables created above uncomment the following line
 # echo "file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}
 # the --app= option prevents the "Restore pages" popup from showing up after the previous process was killed
-$browser ${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app="file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}
+$browser ${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app="file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}"&watchdog_id="${system_uuid} &
+
+# start watchdog
+./start-linux-watchdog.sh $system_uuid
