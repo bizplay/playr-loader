@@ -67,48 +67,4 @@ system_uuid=$(cat /sys/firmware/devicetree/base/serial-number)
 # the --app= option prevents the "Restore pages" popup from showing up after the previous process was killed
 $browser ${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app="file://"${playr_loader_file}"?channel="${channel}"&watchdog_id="${system_uuid} &
 
-# SIMPLE WATCHDOG FUNCTIONALITY
-# Server settings
-server_url=${browser_watchdog_server_url:-"http://ajax.playr.biz/watchdogs/$system_uuid/command"}
-return_value_restart=${browser_watchdog_return_value_restart:-1}
-return_value_no_restart=${browser_watchdog_return_value_no_restart:-0}
-server_check_interval=${browser_watchdog_server_check_interval:-300}
-
-# Function that checks a server for a restart signal
-# by doing a http GET request to the server_url.
-# The result from the get request is stripped of spaces
-# and checked for being an integer value and then returned.
-# If the result of the request is empty or not an integer value
-# return_value_no_restart is returned to minimize the risk of an
-# unintended restart of Webconverger
-request_restart_signal() {
-	local result="$(curl --silent "$server_url")"
-	local result_without_spaces=${result// }
-	if [[ -z $result_without_spaces ]]; then
-		echo $return_value_no_restart
-	elif [[ "$result_without_spaces" =~ ^[0-9]+$ ]]; then
-		echo $result_without_spaces
-	else
-		echo $return_value_no_restart
-	fi
-}
-# reboot the computer
-reboot_machine() {
-	sync
-	sudo shutdown --reboot now
-}
-
-# Wait to allow the browser to start up properly
-# It is best if the browser (playback)
-# connects to the backend first before this script does to enable
-# the backend to properly initiate the necessary context.
-sleep $one_minute
-
-while true; do
-	if [ "$(request_restart_signal)" -eq "$return_value_restart" ]; then
-		$(reboot_machine)
-	fi
-	sleep $server_check_interval
-done
-
-exit 0
+./start-linux-watchdog.sh $system_uuid
