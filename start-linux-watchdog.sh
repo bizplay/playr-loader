@@ -46,7 +46,7 @@ request_restart_signal() {
 # reboot the computer for linux systems
 reboot_machine_linux() {
     sync
-    sudo shutdown --reboot now
+    shutdown --reboot now
 }
 
 # reboot the computer for osx systems
