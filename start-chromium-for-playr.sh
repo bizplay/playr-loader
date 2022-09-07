@@ -136,10 +136,15 @@ if [ "$(uname)" == "Linux" ]; then
 	sed -i -E 's/("exited_cleanly":\s*)false/\1true/g' $preferences_file
 	sed -i -E 's/("exit_type":\s*)"Crashed"/\1"Normal"/g' $preferences_file
 fi
+
 # to check the values of the variables created above uncomment the following line
 # echo "file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}
 # the --app= option prevents the "Restore pages" popup from showing up after the previous process was killed
-$browser ${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app="file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}"&watchdog_id="${system_uuid} &
+if [ "$(uname)" == "Darwin" ]; then
+	open -a "$browser" --args ${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app="file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}"&watchdog_id="${system_uuid}
+else
+	$browser ${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app="file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}"&watchdog_id="${system_uuid} &
+fi
 
 # start watchdog
 ./start-linux-watchdog.sh $system_uuid
