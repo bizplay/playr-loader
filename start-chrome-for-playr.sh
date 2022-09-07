@@ -39,7 +39,8 @@ no_nagging_options="--disable-features=SameSiteByDefaultCookies,CookiesWithoutSa
 # The path to the page that will check internet connection
 # before loading the actual signage channel
 # NOTE: check the location of the player_loader.html in the following line
-playr_loader_file="$(pwd)/playr_loader.html"
+execution_path=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+playr_loader_file="${execution_path}/playr_loader.html"
 
 # Add some terminal colors
 COLOR_OFF='\033[0m'       # Text reset
@@ -85,7 +86,7 @@ get_first_hardware_mac() {
 	parse_mac_from_ip_link
 }
 
-# get system uuid based on ioreg or ip link mac address 
+# get system uuid based on ioreg or ip link mac address
 get_system_uuid() {
 	if [ "$(uname)" == "Darwin" ]; then
 		echo $(ioreg -rd1 -c IOPlatformExpertDevice | awk '/IOPlatformSerialNumber/')
@@ -144,7 +145,11 @@ fi
 # to check the values of the variables created above uncomment the following line
 # echo "file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}
 # the --app= option prevents the "Restore pages" popup from showing up after the previous process was killed
-$browser ${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app="file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}"&watchdog_id="${system_uuid} &
+if [ "$(uname)" == "Darwin" ]; then
+	open -a "$browser" --args ${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app="file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}"&watchdog_id="${system_uuid}
+else
+	$browser ${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app="file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}"&watchdog_id="${system_uuid} &
+fi
 
 # start watchdog
 ./start-linux-watchdog.sh $system_uuid
