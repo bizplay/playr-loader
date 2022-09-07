@@ -16,20 +16,13 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-# Load in linux functions (mac retrieval)
-. ./functions/linux.sh
-
-# Get system ID used in watchdog
-# uses get_first_hardware_mac from the functins/linux.sh helper
-system_uuid=$(get_first_hardware_mac)
+##########################################################################
+#							VARIABLES    								 #
+##########################################################################
 
 # Define the browser to use
-browser="/usr/bin/chromium-browser"
+browser=""
 preferences_file="~/.config/chromium/Default/Preferences"
-
-# Prevent popups or additional empty tabs
-sed -i -E 's/("exited_cleanly":\s*)false/\1true/g' $preferences_file
-sed -i -E 's/("exit_type":\s*)"Crashed"/\1"Normal"/g' $preferences_file
 
 # Define the command line options for starting browser
 # gpu_options="--ignore-gpu-blocklist --enable-experimental-canvas-features --enable-gpu-rasterization --enable-threaded-gpu-rasterization"
@@ -43,6 +36,78 @@ no_nagging_options="--disable-features=SameSiteByDefaultCookies,CookiesWithoutSa
 # NOTE: check the location of the player_loader.html in the following line
 execution_path=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 playr_loader_file="${execution_path}/playr_loader.html"
+
+# Add some terminal colors
+COLOR_OFF='\033[0m'       # Text reset
+COLOR_RED='\033[0;31m'    # Red
+COLOR_YELLOW='\033[0;33m' # Yellow
+COLOR_BLUE='\033[0;34m'   # Blue
+COLOR_GREEN='\033[0;32m'  # Green
+
+##########################################################################
+#							   METHODS     								 #
+##########################################################################
+
+# Use this to write informative log messages to the terminal
+log_info() {
+	echo -e "[INFO]  - $(date +%F-%T) - $COLOR_BLUE${1}$COLOR_OFF"
+}
+
+# Use this to write warning messages to the terminal
+log_warning() {
+	echo -e "[WARN]  - $(date +%F-%T) - $COLOR_YELLOW${1}$COLOR_OFF"
+}
+
+# Use this to write error messages to the terminal
+log_error() {
+	echo -e "[ERROR] - $(date +%F-%T) - $COLOR_RED${1}$COLOR_OFF"
+}
+
+# parse mac address from the ip link command
+# ignore loopback devices and focus on link/ether
+# extract the mac and select the first one based on activation order in kernel
+parse_mac_from_ip_link() {
+	echo $(ip link | grep -E "link/ether" | grep -o -E '([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}' | head -1)
+}
+
+# get first mac of the network hardware
+# order defined by kernel activation order
+get_first_hardware_mac() {
+	if ! which ip >/dev/null; then
+		echo "ip not installed on this system, please install ip"
+		exit 1
+	fi
+
+	parse_mac_from_ip_link
+}
+
+# get system uuid based on ioreg or ip link mac address 
+get_system_uuid() {
+	if [ "$(uname)" == "Darwin" ]; then
+		echo $(ioreg -rd1 -c IOPlatformExpertDevice | awk '/IOPlatformSerialNumber/')
+	else
+		echo $(get_first_hardware_mac)
+	fi
+}
+
+# return the path for the browser based on oeprating system
+get_chrome_browser() {
+	if [ "$(uname)" == "Darwin" ]; then
+		echo "Chromium.app"
+	else
+		echo "/usr/bin/chromium-browser"
+	fi
+}
+
+##########################################################################
+#							   Execution   								 #
+##########################################################################
+
+# Get system ID used in watchdog
+# uses ioreg or ip link based on osx or linux environment
+system_uuid=$(get_system_uuid)
+
+browser=$(get_chrome_browser)
 
 # The URL that will be played in the browser
 if [[ $1 == "" ]]; then
@@ -65,6 +130,12 @@ else
 	reload_url=file://$2
 fi
 
+# Only preference file adjustments are needed on Linux
+if [ "$(uname)" == "Linux" ]; then
+	# Prevent popups or additional empty tabs
+	sed -i -E 's/("exited_cleanly":\s*)false/\1true/g' $preferences_file
+	sed -i -E 's/("exit_type":\s*)"Crashed"/\1"Normal"/g' $preferences_file
+fi
 # to check the values of the variables created above uncomment the following line
 # echo "file://"${playr_loader_file}"?channel="${channel}"&reload_url="${reload_url}
 # the --app= option prevents the "Restore pages" popup from showing up after the previous process was killed
