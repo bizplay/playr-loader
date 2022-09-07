@@ -84,7 +84,8 @@ get_first_hardware_mac() {
 # get system uuid based on ioreg or ip link mac address 
 get_system_uuid() {
 	if [ "$(uname)" == "Darwin" ]; then
-		echo $(ioreg -rd1 -c IOPlatformExpertDevice | awk '/IOPlatformSerialNumber/')
+		# get platform serial number, parse and strip quotes
+		echo $(ioreg -rd1 -c IOPlatformExpertDevice | awk '/IOPlatformSerialNumber/' | grep -o -E '("\w+")$' | sed -E 's/"//g')
 	else
 		echo $(get_first_hardware_mac)
 	fi
