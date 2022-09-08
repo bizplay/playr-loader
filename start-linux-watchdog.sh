@@ -16,13 +16,41 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
-. ./functions/linux.sh
+##########################################################################
+#							VARIABLES    								 #
+##########################################################################
 
 # Server settings
 server_url=${browser_watchdog_server_url:-"http://ajax.playr.biz/watchdogs/$1/command"}
 return_value_restart=${browser_watchdog_return_value_restart:-1}
 return_value_no_restart=${browser_watchdog_return_value_no_restart:-0}
 server_check_interval=${browser_watchdog_server_check_interval:-300}
+
+# Add some terminal colors
+COLOR_OFF='\033[0m'       # Text reset
+COLOR_RED='\033[0;31m'    # Red
+COLOR_YELLOW='\033[0;33m' # Yellow
+COLOR_BLUE='\033[0;34m'   # Blue
+COLOR_GREEN='\033[0;32m'  # Green
+
+##########################################################################
+#							   METHODS     								 #
+##########################################################################
+
+# Use this to write informative log messages to the terminal
+log_info() {
+    echo -e "[INFO]  - $(date +%F-%T) - $COLOR_BLUE${1}$COLOR_OFF"
+}
+
+# Use this to write warning messages to the terminal
+log_warning() {
+    echo -e "[WARN]  - $(date +%F-%T) - $COLOR_YELLOW${1}$COLOR_OFF"
+}
+
+# Use this to write error messages to the terminal
+log_error() {
+    echo -e "[ERROR] - $(date +%F-%T) - $COLOR_RED${1}$COLOR_OFF"
+}
 
 # Function that checks a server for a restart signal
 # by doing a http GET request to the server_url.
@@ -78,6 +106,10 @@ start_watchdog() {
         sleep $server_check_interval
     done
 }
+
+##########################################################################
+#							   Execution   								 #
+##########################################################################
 
 if [[ $1 == "" ]]; then
     log_error "machine_id not passed as argument to wathdog (./startLinuxWatchdog ID)"
