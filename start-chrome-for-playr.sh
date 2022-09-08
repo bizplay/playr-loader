@@ -53,16 +53,6 @@ COLOR_GREEN='\033[0;32m'  # Green
 #							   METHODS     								 #
 ##########################################################################
 
-# Use this to write informative log messages to the terminal
-log_info() {
-	echo -e "[INFO]  - $(date +%F-%T) - $COLOR_BLUE${1}$COLOR_OFF"
-}
-
-# Use this to write warning messages to the terminal
-log_warning() {
-	echo -e "[WARN]  - $(date +%F-%T) - $COLOR_YELLOW${1}$COLOR_OFF"
-}
-
 # Use this to write error messages to the terminal
 log_error() {
 	echo -e "[ERROR] - $(date +%F-%T) - $COLOR_RED${1}$COLOR_OFF"
@@ -88,15 +78,25 @@ get_first_hardware_mac() {
 
 # get system uuid based on ioreg or ip link mac address
 get_system_uuid() {
+	local result=""
+
 	if [ "$(uname)" == "Darwin" ]; then
 		# get platform serial number, parse and strip quotes
-		echo $(ioreg -rd1 -c IOPlatformExpertDevice | awk '/IOPlatformSerialNumber/' | grep -o -E '("\w+")$' | sed -E 's/"//g')
+		result=$(ioreg -rd1 -c IOPlatformExpertDevice | awk '/IOPlatformSerialNumber/' | grep -o -E '("\w+")$' | sed -E 's/"//g')
 	else
-		echo $(get_first_hardware_mac)
+		result=$(get_first_hardware_mac)
+	fi
+
+	# check return code on error
+	if [ "$?" -ne "0" ]; then
+		echo "failed to retrieve system_uuid reason: $result"
+		exit 1
+	else
+		echo $result
 	fi
 }
 
-# return the path for the browser based on oeprating system
+# return the path for the browser based on operating system
 get_chrome_browser() {
 	if [ "$(uname)" == "Darwin" ]; then
 		echo "/Applications/Google Chrome.app"
@@ -109,11 +109,18 @@ get_chrome_browser() {
 #							   Execution   								 #
 ##########################################################################
 
+# Fill browser path based on operating system
+browser=$(get_chrome_browser)
+
 # Get system ID used in watchdog
 # uses ioreg or ip link based on osx or linux environment
 system_uuid=$(get_system_uuid)
 
-browser=$(get_chrome_browser)
+# Handle failure cause on getting system_uuid
+if [ "$?" -ne "0" ]; then
+	log_error "$system_uuid"
+	exit 1
+fi
 
 # The URL that will be played in the browser
 if [[ $1 == "" ]]; then
@@ -124,6 +131,7 @@ if [[ $1 == "" ]]; then
 else
 	channel=$1
 fi
+
 # Escape special characters so any parameters of the channel url
 # and reload_url will be processed correctly by the player_loader_file
 channel=$(echo "$channel" | sed 's:%:%25:g;s:?:%3F:g;s:&:%26:g;s:=:%3D:g;s: :%20:g;s_:_%3A_g;s:/:%2F:g;s:;:%3B:g;s:@:%40:g;s:+:%2B:g;s:,:%2C:g;s:#:%23:g')
@@ -139,8 +147,8 @@ fi
 # Only preference file adjustments are needed on Linux
 if [ "$(uname)" == "Linux" ]; then
 	# Prevent popups or additional empty tabs
-	sed -i -E 's/("exited_cleanly":\s*)false/\1true/g' $preferences_file
-	sed -i -E 's/("exit_type":\s*)"Crashed"/\1"Normal"/g' $preferences_file
+	sed -i -E 's/("exited_cleanly":\s*)false/\1true/g' $preferences_file || true
+	sed -i -E 's/("exit_type":\s*)"Crashed"/\1"Normal"/g' $preferences_file || true
 fi
 
 # to check the values of the variables created above uncomment the following line
