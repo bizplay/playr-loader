@@ -115,7 +115,7 @@ fi
 
 # Insert bizplay url into chrome flags
 #grep -q 'app=' $chflags || echo '--app=http://play.playr.biz?kiosk=' >> $chflags
-grep -q 'app=' $chflags || echo "--app=http://play.playr.biz?kiosk=$system_uuid" >> $chflags
+# grep -q 'app=' $chflags || echo "--app=http://play.playr.biz?kiosk=$system_uuid" >> $chflags
 #grep -q 'app=' $chflags || echo '--app=http://play.playr.biz' >> $chflags
 
 start_watchdog &
