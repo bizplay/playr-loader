@@ -85,6 +85,7 @@ reboot_machine() {
 
 # Initiate watchdog
 start_watchdog() {
+    sleep $server_check_interval
     while true; do
         log_info "sending request to $server_url"
         if [ "$(request_restart_signal)" -eq "$return_value_restart" ]; then
@@ -112,10 +113,5 @@ if ! which curl >/dev/null; then
     log_error "curl not installed on this system, please install curl"
     exit 1
 fi
-
-# Insert bizplay url into chrome flags
-#grep -q 'app=' $chflags || echo '--app=http://play.playr.biz?kiosk=' >> $chflags
-# grep -q 'app=' $chflags || echo "--app=http://play.playr.biz?kiosk=$system_uuid" >> $chflags
-#grep -q 'app=' $chflags || echo '--app=http://play.playr.biz' >> $chflags
 
 start_watchdog &
