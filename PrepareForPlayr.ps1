@@ -113,7 +113,7 @@ try {
 if ($continue) {
     ###############################################################################
     #
-    # Disable hybernation
+    # Disable hibernation
     #
     ###############################################################################
     Write-Host "Prevent hibernation of this device:"
@@ -243,11 +243,13 @@ if ($continue) {
     ###############################################################################
     Write-Host "Configure auto start of Bizplay playback:"
     if ($env:USERPROFILE) {
+        # Querie desktop folder location siince it can be a roaming folder (on OndeDrive)
+        $desktopFolder = [Environment]::GetFolderPath("Desktop")
 
-        if (-not (Test-Path -Path "$Env:USERPROFILE\Desktop\StartChromeForPlayr.cmd" -PathType Leaf) -and (Test-Path -Path ".\StartChromeForPlayr.cmd" -PathType Leaf)) {
-            Copy-Item -Path ".\StartChromeForPlayr.cmd" -Destination "$Env:USERPROFILE\Desktop\"
-            if (-not (Test-Path -Path "$Env:USERPROFILE\Desktop\playr_loader.html" -PathType Leaf) -and (Test-Path -Path ".\playr_loader.html" -PathType Leaf)) {
-                Copy-Item -Path ".\playr_loader.html" -Destination "$Env:USERPROFILE\Desktop\"
+        if (-not (Test-Path -Path "$desktopFolder\StartChromeForPlayr.cmd" -PathType Leaf) -and (Test-Path -Path ".\StartChromeForPlayr.cmd" -PathType Leaf)) {
+            Copy-Item -Path ".\StartChromeForPlayr.cmd" -Destination "$desktopFolder\"
+            if (-not (Test-Path -Path "$desktopFolder\playr_loader.html" -PathType Leaf) -and (Test-Path -Path ".\playr_loader.html" -PathType Leaf)) {
+                Copy-Item -Path ".\playr_loader.html" -Destination "$desktopFolder\"
                 Write-Host "=> Files copied" -Fore Green
             }
         }
@@ -257,8 +259,8 @@ if ($continue) {
         if (!$task) {
             $Trigger = New-ScheduledTaskTrigger -AtLogOn -RandomDelay (New-TimeSpan -Seconds 30)
             $User = "$(whoami)"
-            # $Action= New-ScheduledTaskAction -Execute "cmd.exe" -Argument "$Env:USERPROFILE\Desktop\StartChromeForPlayr.cmd"
-            $Action= New-ScheduledTaskAction -Execute "$Env:USERPROFILE\Desktop\StartChromeForPlayr.cmd"
+            # $Action= New-ScheduledTaskAction -Execute "cmd.exe" -Argument "$desktopFolder\StartChromeForPlayr.cmd"
+            $Action= New-ScheduledTaskAction -Execute "$desktopFolder\StartChromeForPlayr.cmd"
             Register-ScheduledTask -TaskName $taskName -Trigger $Trigger -User $User -Action $Action -RunLevel Highest -Force
             Write-Host "=> Auto start task has been created" -Fore Green
         } else {
