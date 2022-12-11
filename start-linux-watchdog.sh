@@ -123,4 +123,7 @@ if ! which curl >/dev/null; then
     exit 1
 fi
 
+#sleep before sending out first request allow the browser to be fully booted
+sleep $server_check_interval
+
 start_watchdog
