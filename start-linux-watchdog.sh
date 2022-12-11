@@ -74,7 +74,12 @@ request_restart_signal() {
 # reboot the computer for linux systems
 reboot_machine_linux() {
     sync
-    shutdown --reboot now
+    # if raspberry pi allow passwordless sudo shutdown else do normal shutdown
+    if cat /proc/cpuinfo | grep "Raspberry Pi" &>/dev/null; then
+        sudo shutdown --reboot now
+    else
+        shutdown --reboot now
+    fi
 }
 
 # reboot the computer for osx systems
