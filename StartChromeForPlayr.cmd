@@ -164,7 +164,7 @@ set reboot_command=1
 :: set default response in case the server does not respond (4xx/5xx status code)
 set response=2
 :: first wait for the player to start properly
-timeout /nobreak /t 30
+timeout /nobreak /t %watchdog_interval_in_sec%
 
 :WATCHDOG_LOOP
 :: get command from the server
