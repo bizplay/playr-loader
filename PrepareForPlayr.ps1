@@ -73,7 +73,7 @@ try {
     #Show available Drivers
     if(-not ([string]::IsNullOrEmpty($Updates))) {
         Write-Host "=> Updates found:" -Fore Green
-        $Updates | select Title, DriverModel, DriverVerDate, Driverclass, DriverManufacturer | fl
+        $Updates | Select-Object Title, DriverModel, DriverVerDate, Driverclass, DriverManufacturer | fl
     } else {
         Write-Host "=> No third party driver updates found" -Fore Green
     }
@@ -84,7 +84,7 @@ try {
     $updates | ForEach-Object { $UpdatesToDownload.Add($_) | out-null }
     if(-not ([string]::IsNullOrEmpty($UpdatesToDownload))) {
         Write-Host "Downloading Drivers"  -Fore Green
-        $UpdatesToDownload | select Title | fl
+        $UpdatesToDownload | Select-Object Title | Format-List
         $UpdateSession = New-Object -Com Microsoft.Update.Session
         $Downloader = $UpdateSession.CreateUpdateDownloader()
         $Downloader.Updates = $UpdatesToDownload
@@ -226,7 +226,7 @@ if ($continue) {
     if (-Not (Test-Path "HKLM:\Software\Policies\Google\Chrome")) {
         New-Item -Path "HKLM:\Software\Policies\Google" -Name "Chrome"
     }
-    if ((Get-Item -Path "HKLM:\Software\Policies\Google\Chrome\").GetValue("LegacySameSiteCookieBehaviorEnabled") -eq $null) {
+    if ($null -eq (Get-Item -Path "HKLM:\Software\Policies\Google\Chrome\").GetValue("LegacySameSiteCookieBehaviorEnabled")) {
         New-ItemProperty -Path "HKLM:\Software\Policies\Google\Chrome" -Name "LegacySameSiteCookieBehaviorEnabled" -Value 0x00000001 -PropertyType Dword
         Write-Host "=> Policy has been set correctly" -Fore Green
     } elseif ((Get-Item -Path "HKLM:\Software\Policies\Google\Chrome\").GetValue("LegacySameSiteCookieBehaviorEnabled") -ne 1) {
@@ -284,7 +284,7 @@ if ($continue) {
     if (-Not (Test-Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device")) {
         New-Item -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess" -Name "Device"
     }
-    if ((Get-Item -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device\").GetValue("DevicePasswordLessBuildVersion") -eq $null) {
+    if ($null -eq (Get-Item -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device\").GetValue("DevicePasswordLessBuildVersion")) {
         New-ItemProperty -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device" -Name "DevicePasswordLessBuildVersion" -Value 0x00000000 -PropertyType Dword
         Write-Host "=> Setting passwordless login is now possible" -Fore Green
     } elseif ((Get-Item -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device\").GetValue("DevicePasswordLessBuildVersion") -ne 0) {
@@ -302,7 +302,7 @@ if ($continue) {
     #
     ###############################################################################
     Write-Host "Enabling automatic Windows updates:"
-    if ((Get-Item -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\").GetValue("AUOptions") -eq $null) {
+    if ($null -eq (Get-Item -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\").GetValue("AUOptions")) {
         New-ItemProperty -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update" -Name "AUOptions" -Value 0x00000000 -PropertyType Dword
         Write-Host "=> Activating automatic Windows updates is now possible" -Fore Green
     } elseif ((Get-Item -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\").GetValue("AUOptions") -ne 0) {
@@ -323,4 +323,4 @@ if ($continue) {
 # Wait for input before ending script execution
 #
 ###############################################################################
-$input = Read-Host 'Press enter to continue'
+$userInput = Read-Host 'Press enter to continue'
