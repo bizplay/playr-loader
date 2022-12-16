@@ -67,4 +67,4 @@ system_uuid=$(cat /sys/firmware/devicetree/base/serial-number)
 # the --app= option prevents the "Restore pages" popup from showing up after the previous process was killed
 $browser ${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app="file://"${playr_loader_file}"?channel="${channel}"&watchdog_id="${system_uuid} &
 
-./start-linux-watchdog.sh $system_uuid
+${execution_path}/start-linux-watchdog.sh $system_uuid

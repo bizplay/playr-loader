@@ -161,4 +161,4 @@ else
 fi
 
 # start watchdog
-./start-linux-watchdog.sh $system_uuid
+${execution_path}/start-linux-watchdog.sh $system_uuid
