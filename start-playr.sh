@@ -99,9 +99,9 @@ get_system_uuid() {
     fi
 }
 
-get_installed_browser() {
+get_installed_browser_linux() {
     # List of supported browsers
-    supported_browsers=("google-chrome" "chromium" "firefox")
+    supported_browsers=("google-chrome" "chromium-browser" "firefox")
 
     # Iterate through the list of browsers
     for browser in "${supported_browsers[@]}"; do
@@ -120,13 +120,45 @@ get_installed_browser() {
     fi
 }
 
+get_installed_browser_mac() {
+    # List of supported browsers
+    supported_browsers=("Google Chrome.app" "Chromium.app" "Firefox.app")
+
+    # Iterate through the list of browsers
+    for browser in "${supported_browsers[@]}"; do
+        # Check if the browser is installed
+        if find /Applications -maxdepth 1 -name $browser | grep -q .; then
+            # change spaces to a _
+            found_browser=${browser// /_}
+            # lower case the browser
+            found_browser=${browser,,}
+            found_browser_path="$(find /Applications -maxdepth 1 -name ${browser})"
+        fi
+    done
+
+    if [ -z "$found_browser" ]; then
+        echo "Error: No supported browser (${supported_browsers[@]}) found."
+    else
+        echo $found_browser $browser_path
+    fi
+}
+
+get_installed_browser() {
+    if [ "$(uname)" == "Darwin" ]; then
+        # get platform serial number, parse and strip quotes
+        get_installed_browser_mac
+    else
+        get_installed_browser_linux
+    fi
+}
+
 update_browser_preferences() {
     # Variables for the location of preference files
     google_chrome_darwin_pref_file="$HOME/Library/Application Support/Google/Chrome/Default/Preferences"
     google_chrome_linux_pref_file="$HOME/.config/google-chrome/Default/Preferences"
 
-    chromium_darwin_pref_file="$HOME/Library/Application Support/Chromium/Default/Preferences"
-    chromium_linux_pref_file="$HOME/.config/chromium/Default/Preferences"
+    chromium_browser_darwin_pref_file="$HOME/Library/Application Support/Chromium/Default/Preferences"
+    chromium_browser_linux_pref_file="$HOME/.config/chromium/Default/Preferences"
 
     firefox_darwin_pref_file="$HOME/Library/Application Support/Firefox/Profiles/*.default/prefs.js"
     firefox_linux_pref_file="$HOME/.mozilla/firefox/*.default/prefs.js"
