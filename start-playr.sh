@@ -99,6 +99,7 @@ get_system_uuid() {
     fi
 }
 
+# Get installed browser detected on a linux system using executable detection in PATH
 get_installed_browser_linux() {
     # List of supported browsers
     supported_browsers=("google-chrome" "chromium-browser" "firefox")
@@ -120,6 +121,7 @@ get_installed_browser_linux() {
     fi
 }
 
+# Get installed browser on OSX by detecting if the app is installed
 get_installed_browser_mac() {
     # List of supported browsers
     supported_browsers=("Google Chrome.app" "Firefox.app")
@@ -144,13 +146,13 @@ get_installed_browser_mac() {
 
 get_installed_browser() {
     if [ "$(uname)" == "Darwin" ]; then
-        # get platform serial number, parse and strip quotes
         get_installed_browser_mac
     else
         get_installed_browser_linux
     fi
 }
 
+# update your browser preferences to fix unwanted popup messages
 update_browser_preferences() {
     # Variables for the location of preference files
     google_chrome_darwin_pref_file="$HOME/Library/Application Support/Google/Chrome/Default/Preferences"
@@ -166,8 +168,8 @@ update_browser_preferences() {
     # Replacing all '-' with '_' in the browser name for a valid variable name
     browser="$(echo $1 | tr '[:upper:]' '[:lower:]' | tr '-' '_')"
 
-    # Lower case the uname output for valid variable name
     os=$(uname)
+    # Lower case the uname output for valid variable name
     os="$(echo $os | tr '[:upper:]' '[:lower:]')"
 
     # Use eval to dynamically select the pref file variable
