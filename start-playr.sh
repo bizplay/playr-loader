@@ -106,8 +106,8 @@ get_installed_browser_linux() {
     # Iterate through the list of browsers
     for browser in "${supported_browsers[@]}"; do
         # Check if the browser is installed
-        browser_path=$(which $browser)
-        if [ -n "$browser_path" ]; then
+        found_browser_path=$(which $browser)
+        if [ -n "$found_browser_path" ]; then
             found_browser=$browser
             break
         fi
@@ -116,28 +116,29 @@ get_installed_browser_linux() {
     if [ -z "$found_browser" ]; then
         echo "Error: No supported browser (${supported_browsers[@]}) found."
     else
-        echo $found_browser $browser_path
+        echo $found_browser "|" $found_browser_path
     fi
 }
 
 get_installed_browser_mac() {
     # List of supported browsers
-    supported_browsers=("Google Chrome.app" "Chromium.app" "Firefox.app")
+    supported_browsers=("Google Chrome.app" "Firefox.app")
 
     # Iterate through the list of browsers
     for browser in "${supported_browsers[@]}"; do
         # Check if the browser is installed
-        if find /Applications -maxdepth 1 -name $browser | grep -q .; then
+        if find /Applications -maxdepth 1 -name "$browser" | grep -q .; then
             # change spaces to a _ and make it lower case
-            found_browser="$(echo $browser | tr '[:upper:]' '[:lower:]' | tr '-' '_')"
-            found_browser_path="$(find /Applications -maxdepth 1 -name ${browser})"
+            found_browser=$(echo $browser | tr '[:upper:]' '[:lower:]' | tr '-' '_')
+            found_browser_path=$(find /Applications -maxdepth 1 -name "${browser}")
+            break
         fi
     done
 
     if [ -z "$found_browser" ]; then
         echo "Error: No supported browser (${supported_browsers[@]}) found."
     else
-        echo $found_browser $browser_path
+        echo $found_browser "|" $found_browser_path
     fi
 }
 
@@ -225,13 +226,13 @@ open_playr() {
     browser_startup="${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app=file://${playr_loader_file}?channel=${channel}&reload_url=${reload_url}&watchdog_id=${system_uuid}"
 
     # overwrite startup if it's a firefox browser
-    if [[ "${browser}" =~ .*firefox.* ]]; then
+    lowercase_path=$(echo "$browser" | tr '[:upper:]' '[:lower:]')
+    if [[ "${lowercase_path}" =~ .*firefox.* ]]; then
         browser_startup="--kiosk file://${playr_loader_file}?channel=${channel}&reload_url=${reload_url}&watchdog_id=${system_uuid}"
     fi
 
     if [ "$(uname)" == "Darwin" ]; then
-        # get platform serial number, parse and strip quotes
-        open -a "$browser" --args ${browser_startup}
+        open -a "$browser" --args $browser_startup
     else
         $browser $browser_startup &
     fi
@@ -246,10 +247,10 @@ else
     log_info "Found browser: $result"
 fi
 
-# result is filled with "browsername browserpath" use read to split ' ' and parse into array
-split_output=' ' read -ra arr <<<"$result"
+# result is filled with "browsername|browserpath" use read to split '|' and parse into array
+IFS='|' read -ra arr <<<"$result"
 found_browser=${arr[0]}
-found_browser_path=${arr[1]}
+found_browser_path=$(echo ${arr[1]} | sed -e 's/^[[:space:]]*//')
 
 # Update the preferences of the found browser
 output=$(update_browser_preferences ${found_browser})
@@ -264,7 +265,7 @@ system_uuid=$(get_system_uuid)
 reload_url=$(get_reload_url $2)
 
 # open the playr browser pointing to the correct path
-open_playr ${found_browser_path} ${channel} ${system_uuid} ${reload_url}
+open_playr "${found_browser_path}" "${channel}" "${system_uuid}" "${reload_url}"
 
 # # start the watchdog
 ${execution_path}/start-watchdog.sh $system_uuid
