@@ -128,10 +128,8 @@ get_installed_browser_mac() {
     for browser in "${supported_browsers[@]}"; do
         # Check if the browser is installed
         if find /Applications -maxdepth 1 -name $browser | grep -q .; then
-            # change spaces to a _
-            found_browser=${browser// /_}
-            # lower case the browser
-            found_browser=${browser,,}
+            # change spaces to a _ and make it lower case
+            found_browser="$(echo $browser | tr '[:upper:]' '[:lower:]' | tr '-' '_')"
             found_browser_path="$(find /Applications -maxdepth 1 -name ${browser})"
         fi
     done
@@ -163,14 +161,13 @@ update_browser_preferences() {
     firefox_darwin_pref_file="$HOME/Library/Application Support/Firefox/Profiles/*.default/prefs.js"
     firefox_linux_pref_file="$HOME/.mozilla/firefox/*.default/prefs.js"
 
-    # Replacing all '-' with '_' in the browser name for a valid variable name
-    browser=${1,,}
     # Lower case the browser name for a valid variable name
-    browser=${1//-/_}
+    # Replacing all '-' with '_' in the browser name for a valid variable name
+    browser="$(echo $1 | tr '[:upper:]' '[:lower:]' | tr '-' '_')"
 
     # Lower case the uname output for valid variable name
     os=$(uname)
-    os=${os,,}
+    os="$(echo $os | tr '[:upper:]' '[:lower:]')"
 
     # Use eval to dynamically select the pref file variable
     pref_file_var="${browser}_${os}_pref_file"
