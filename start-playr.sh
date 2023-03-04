@@ -226,13 +226,13 @@ open_playr() {
     no_nagging_options="--simulate-outdated-no-au='Tue, 31 Dec 2099 23:59:59 GMT' --disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --no-default-browser-check --disable-infobars --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-session-crashed-bubble"
 
     
-    browser_startup="${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app=file://${playr_loader_file}?channel=${channel}&reload_url=${reload_url}&watchdog_id=${uuid}&playr_id=${uuid}"
+    browser_startup="${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app=file://${playr_loader_file}?channel=${channel}&reload_url=${reload_url}&watchdog_id=${uuid}&player_id=${uuid}"
     log_info "this is the startup :: $browser_startup"
 
     # overwrite startup if it's a firefox browser
     lowercase_path=$(echo "$browser" | tr '[:upper:]' '[:lower:]')
     if [[ "${lowercase_path}" =~ .*firefox.* ]]; then
-        browser_startup="--kiosk file://${playr_loader_file}?channel=${channel}&reload_url=${reload_url}&watchdog_id=${uuid}&playr_id=${uuid}"
+        browser_startup="--kiosk file://${playr_loader_file}?channel=${channel}&reload_url=${reload_url}&watchdog_id=${uuid}&player_id=${uuid}"
     fi
 
     if [ "$(uname)" == "Darwin" ]; then
