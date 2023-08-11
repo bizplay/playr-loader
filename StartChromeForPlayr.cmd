@@ -197,4 +197,4 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
     goto WATCHDOG_LOOP
   )
   exit /b 0
-end
+exit
