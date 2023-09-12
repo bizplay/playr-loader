@@ -17,11 +17,14 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 
 ##########################################################################
-#							VARIABLES    								 #
+###                          VARIABLES                                 ###
 ##########################################################################
 
+# Use first parameter as unique identifier
+system_uuid=$1
+
 # Server settings
-server_url=${browser_watchdog_server_url:-"http://ajax.playr.biz/watchdogs/$1/command"}
+server_url=${browser_watchdog_server_url:-"http://ajax.playr.biz/watchdogs/${system_uuid}/command"}
 return_value_restart=${browser_watchdog_return_value_restart:-1}
 return_value_no_restart=${browser_watchdog_return_value_no_restart:-0}
 server_check_interval=${browser_watchdog_server_check_interval:-300}
@@ -34,7 +37,7 @@ COLOR_BLUE='\033[0;34m'   # Blue
 COLOR_GREEN='\033[0;32m'  # Green
 
 ##########################################################################
-#							   METHODS     								 #
+###                          METHODS                                   ###
 ##########################################################################
 
 # Use this to write informative log messages to the terminal
@@ -98,8 +101,9 @@ reboot_machine() {
     fi
 }
 
-# Initiate watchdog
 start_watchdog() {
+    #sleep before sending out first request allow the browser to be fully booted
+    sleep $server_check_interval
     while true; do
         log_info "sending request to $server_url"
         if [ "$(request_restart_signal)" -eq "$return_value_restart" ]; then
@@ -113,22 +117,18 @@ start_watchdog() {
 }
 
 ##########################################################################
-#							   Execution   								 #
+###                          EXECUTION                                 ###
 ##########################################################################
-
-if [[ $1 == "" ]]; then
+if [[ $system_uuid == "" ]]; then
     log_error "machine_id not passed as argument to wathdog (./startLinuxWatchdog ID)"
     exit 1
 fi
 
-log_info "starting watchdog for device $COLOR_GREEN$1"
+log_info "starting watchdog for device $COLOR_GREEN${system_uuid}"
 
 if ! which curl >/dev/null; then
     log_error "curl not installed on this system, please install curl"
     exit 1
 fi
-
-#sleep before sending out first request allow the browser to be fully booted
-sleep $server_check_interval
 
 start_watchdog

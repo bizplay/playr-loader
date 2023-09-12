@@ -17,10 +17,10 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 
 ##########################################################################
-#							VARIABLES    								 #
+###                          VARIABLES                                 ###
 ##########################################################################
 
-# Get porteus pc ID as unique identifier
+# Use porteus pc ID as unique identifier
 system_uuid=$(cat /etc/version | tail -n 1 | sed 's/ID: //')
 
 # Server settings
@@ -37,9 +37,8 @@ COLOR_BLUE='\033[0;34m'   # Blue
 COLOR_GREEN='\033[0;32m'  # Green
 
 ##########################################################################
-#							   METHODS     								 #
+###                          METHODS                                   ###
 ##########################################################################
-
 
 # Use this to write informative log messages to the terminal
 log_info() {
@@ -66,25 +65,22 @@ log_error() {
 request_restart_signal() {
     local result="$(curl --silent "$server_url")"
     local result_without_spaces=${result// /}
-    local result_has_number="$(echo "$result_without_spaces" | grep -iE '^[0-9]+$' | wc -l)"
-
     if [[ -z $result_without_spaces ]]; then
         echo $return_value_no_restart
-    elif [[ $result_has_number -eq 1 ]]; then
+    elif [[ "$result_without_spaces" =~ ^[0-9]+$ ]]; then
         echo $result_without_spaces
     else
         echo $return_value_no_restart
     fi
 }
 
-
 reboot_machine() {
     sync
     reboot
 }
 
-# Initiate watchdog
 start_watchdog() {
+    #sleep before sending out first request allow the browser to be fully booted
     sleep $server_check_interval
     while true; do
         log_info "sending request to $server_url"
@@ -99,9 +95,8 @@ start_watchdog() {
 }
 
 ##########################################################################
-#							   Execution   								 #
+###                          EXECUTION                                 ###
 ##########################################################################
-
 if [[ $system_uuid == "" ]]; then
     log_error "machine_id not passed as argument to wathdog (./startLinuxWatchdog ID)"
     exit 1
@@ -114,4 +109,4 @@ if ! which curl >/dev/null; then
     exit 1
 fi
 
-start_watchdog &
+start_watchdog
