@@ -28,6 +28,7 @@ server_url=${browser_watchdog_server_url:-"http://ajax.playr.biz/watchdogs/${sys
 return_value_restart=${browser_watchdog_return_value_restart:-1}
 return_value_no_restart=${browser_watchdog_return_value_no_restart:-0}
 server_check_interval=${browser_watchdog_server_check_interval:-300}
+initial_delay=${browser_watchdog_initial_delay:-60}
 watchdog_log_file_name=/opt/storage/watchdog_log.txt
 
 # Add some terminal colors
@@ -85,7 +86,7 @@ reboot_machine() {
 
 start_watchdog() {
     #sleep before sending out first request allow the browser to be fully booted
-    sleep $server_check_interval
+    sleep $initial_delay
     while true; do
         log_info "sending request to $server_url"
         if [ "$(request_restart_signal)" -eq "$return_value_restart" ]; then
