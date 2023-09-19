@@ -32,7 +32,7 @@ initial_delay=${browser_watchdog_initial_delay:-60}
 watchdog_log_file_name=/opt/storage/watchdog_log.txt
 
 # Add some terminal colors
-COLOR_OFF='\033[0m'       # Text reset
+COLOR_OFF='\033[0m'       # Text colour reset
 COLOR_RED='\033[0;31m'    # Red
 COLOR_YELLOW='\033[0;33m' # Yellow
 COLOR_BLUE='\033[0;34m'   # Blue
@@ -44,20 +44,17 @@ COLOR_GREEN='\033[0;32m'  # Green
 
 # Use this to write informative log messages to the terminal
 log_info() {
-#    echo -e "[INFO]  - $(date +%F-%T) - $COLOR_BLUE${1}$COLOR_OFF"
-    echo -e "[INFO]  - $(date +%F-%T) - ${1}" >> $watchdog_log_file_name
+    echo -e "[INFO]  - $(date +%F-%T) - $COLOR_BLUE${1}$COLOR_OFF" >> $watchdog_log_file_name
 }
 
 # Use this to write warning messages to the terminal
 log_warning() {
-#    echo -e "[WARN]  - $(date +%F-%T) - $COLOR_YELLOW${1}$COLOR_OFF"
-    echo -e "[WARN]  - $(date +%F-%T) - ${1}" >> $watchdog_log_file_name
+    echo -e "[WARN]  - $(date +%F-%T) - $COLOR_YELLOW${1}$COLOR_OFF" >> $watchdog_log_file_name
 }
 
 # Use this to write error messages to the terminal
 log_error() {
-#    echo -e "[ERROR] - $(date +%F-%T) - $COLOR_RED${1}$COLOR_OFF"
-    echo -e "[ERROR]  - $(date +%F-%T) - ${1}" >> $watchdog_log_file_name
+    echo -e "[ERROR] - $(date +%F-%T) - $COLOR_RED${1}$COLOR_OFF" >> $watchdog_log_file_name
 }
 
 # Function that checks a server for a restart signal
@@ -70,6 +67,7 @@ log_error() {
 request_restart_signal() {
     local result="$(curl --silent "$server_url")"
     local result_without_spaces=${result// /}
+    log_info "received command from server: $result_without_spaces"
     if [[ -z $result_without_spaces ]]; then
         echo $return_value_no_restart
     elif [[ "$result_without_spaces" =~ ^[0-9]+$ ]]; then
@@ -80,20 +78,21 @@ request_restart_signal() {
 }
 
 reboot_machine() {
+    log_info "start reboot"
     sync
+    log_info "sync returned: $?"
     reboot
+    log_info "reboot returned: $?"
 }
 
 start_watchdog() {
     #sleep before sending out first request allow the browser to be fully booted
     sleep $initial_delay
+    log_info "sending request to $server_url"
     while true; do
-        log_info "sending request to $server_url"
         if [ "$(request_restart_signal)" -eq "$return_value_restart" ]; then
             log_warning "received reboot command: restarting machine"
             $(reboot_machine)
-        else
-            log_info "received command: $? no action yet"
         fi
         sleep $server_check_interval
     done
@@ -107,7 +106,7 @@ if [[ $system_uuid == "" ]]; then
     exit 1
 fi
 
-log_info "starting watchdog for device $COLOR_GREEN${system_uuid}"
+log_info "starting watchdog for device $COLOR_GREEN${system_uuid}$COLOR_OFF"
 
 if ! which curl >/dev/null; then
     log_error "curl not installed on this system, please install curl"
