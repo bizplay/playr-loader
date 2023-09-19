@@ -25,11 +25,13 @@ system_uuid=$(cat /etc/version | tail -n 1 | sed 's/ID: //')
 
 # Server settings
 server_url=${browser_watchdog_server_url:-"http://ajax.playr.biz/watchdogs/${system_uuid}/command"}
+# NOTE: when a return value is added the match logic 
+#       in request_restart_signal has to be extended
 return_value_restart=${browser_watchdog_return_value_restart:-1}
 return_value_no_restart=${browser_watchdog_return_value_no_restart:-0}
 server_check_interval=${browser_watchdog_server_check_interval:-300}
 initial_delay=${browser_watchdog_initial_delay:-60}
-watchdog_log_file_name=/opt/storage/watchdog_log.txt
+log_file_name=${browser_watchdog_log_file_name:-"/var/log/watchdog_log.txt"}
 
 # Add some terminal colors
 COLOR_OFF='\033[0m'       # Text colour reset
@@ -39,22 +41,34 @@ COLOR_BLUE='\033[0;34m'   # Blue
 COLOR_GREEN='\033[0;32m'  # Green
 
 ##########################################################################
-###                          METHODS                                   ###
+###                          FUNCTIONS                                 ###
 ##########################################################################
 
 # Use this to write informative log messages to the terminal
 log_info() {
-    echo -e "[INFO]  - $(date +%F-%T) - $COLOR_BLUE${1}$COLOR_OFF" >> $watchdog_log_file_name
+    if [[ -z $browser_watchdog_log_to_file ]]; then
+        echo -e "[INFO]  - $(date +%F-%T) - $COLOR_BLUE${1}$COLOR_OFF"
+    else
+        echo -e "[INFO]  - $(date +%F-%T) - $COLOR_BLUE${1}$COLOR_OFF" >> $log_file_name
+    fi
 }
 
 # Use this to write warning messages to the terminal
 log_warning() {
-    echo -e "[WARN]  - $(date +%F-%T) - $COLOR_YELLOW${1}$COLOR_OFF" >> $watchdog_log_file_name
+    if [[ -z $browser_watchdog_log_to_file ]]; then
+        echo -e "[WARN]  - $(date +%F-%T) - $COLOR_YELLOW${1}$COLOR_OFF"
+    else
+        echo -e "[WARN]  - $(date +%F-%T) - $COLOR_YELLOW${1}$COLOR_OFF" >> $log_file_name
+    fi
 }
 
 # Use this to write error messages to the terminal
 log_error() {
-    echo -e "[ERROR] - $(date +%F-%T) - $COLOR_RED${1}$COLOR_OFF" >> $watchdog_log_file_name
+    if [[ -z $browser_watchdog_log_to_file ]]; then
+        echo -e "[ERROR] - $(date +%F-%T) - $COLOR_RED${1}$COLOR_OFF"
+    else
+        echo -e "[ERROR] - $(date +%F-%T) - $COLOR_RED${1}$COLOR_OFF" >> $log_file_name
+    fi
 }
 
 # Function that checks a server for a restart signal
@@ -68,10 +82,14 @@ request_restart_signal() {
     local result="$(curl --silent "$server_url")"
     local result_without_spaces=${result// /}
     log_info "received command from server: $result_without_spaces"
+	# use simple matches since this script should be 
+	# compatible with the ash whell (busybox)
     if [[ -z $result_without_spaces ]]; then
         echo $return_value_no_restart
-    elif [[ "$result_without_spaces" =~ ^[0-9]+$ ]]; then
-        echo $result_without_spaces
+    elif [[ "$result_without_spaces" == "$return_value_no_restart" ]]; then
+        echo $return_value_no_restart
+    elif [[ "$result_without_spaces" == "$return_value_restart" ]]; then
+        echo $return_value_restart
     else
         echo $return_value_no_restart
     fi
@@ -101,8 +119,8 @@ start_watchdog() {
 ##########################################################################
 ###                          EXECUTION                                 ###
 ##########################################################################
-if [[ $system_uuid == "" ]]; then
-    log_error "machine_id not passed as argument to wathdog (./startLinuxWatchdog ID)"
+if [[ -z $system_uuid ]]; then
+    log_error "machine_id is not defined!"
     exit 1
 fi
 
