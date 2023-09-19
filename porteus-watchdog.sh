@@ -28,6 +28,7 @@ server_url=${browser_watchdog_server_url:-"http://ajax.playr.biz/watchdogs/${sys
 return_value_restart=${browser_watchdog_return_value_restart:-1}
 return_value_no_restart=${browser_watchdog_return_value_no_restart:-0}
 server_check_interval=${browser_watchdog_server_check_interval:-300}
+watchdog_log_file_name=/opt/storage/watchdog_log.txt
 
 # Add some terminal colors
 COLOR_OFF='\033[0m'       # Text reset
@@ -42,17 +43,20 @@ COLOR_GREEN='\033[0;32m'  # Green
 
 # Use this to write informative log messages to the terminal
 log_info() {
-    echo -e "[INFO]  - $(date +%F-%T) - $COLOR_BLUE${1}$COLOR_OFF"
+#    echo -e "[INFO]  - $(date +%F-%T) - $COLOR_BLUE${1}$COLOR_OFF"
+    echo -e "[INFO]  - $(date +%F-%T) - ${1}" >> $watchdog_log_file_name
 }
 
 # Use this to write warning messages to the terminal
 log_warning() {
-    echo -e "[WARN]  - $(date +%F-%T) - $COLOR_YELLOW${1}$COLOR_OFF"
+#    echo -e "[WARN]  - $(date +%F-%T) - $COLOR_YELLOW${1}$COLOR_OFF"
+    echo -e "[WARN]  - $(date +%F-%T) - ${1}" >> $watchdog_log_file_name
 }
 
 # Use this to write error messages to the terminal
 log_error() {
-    echo -e "[ERROR] - $(date +%F-%T) - $COLOR_RED${1}$COLOR_OFF"
+#    echo -e "[ERROR] - $(date +%F-%T) - $COLOR_RED${1}$COLOR_OFF"
+    echo -e "[ERROR]  - $(date +%F-%T) - ${1}" >> $watchdog_log_file_name
 }
 
 # Function that checks a server for a restart signal
