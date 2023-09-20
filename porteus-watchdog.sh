@@ -46,29 +46,17 @@ COLOR_GREEN='\033[0;32m'  # Green
 
 # Use this to write informative log messages to the terminal
 log_info() {
-    if [[ -z $browser_watchdog_log_to_file ]]; then
-        echo -e "[INFO]  - $(date +%F-%T) - $COLOR_BLUE${1}$COLOR_OFF"
-    else
-        echo -e "[INFO]  - $(date +%F-%T) - $COLOR_BLUE${1}$COLOR_OFF" >> $log_file_name
-    fi
+    echo -e "[INFO]  - $(date +%F-%T) - $COLOR_BLUE${1}$COLOR_OFF" >> $log_file_name
 }
 
 # Use this to write warning messages to the terminal
 log_warning() {
-    if [[ -z $browser_watchdog_log_to_file ]]; then
-        echo -e "[WARN]  - $(date +%F-%T) - $COLOR_YELLOW${1}$COLOR_OFF"
-    else
-        echo -e "[WARN]  - $(date +%F-%T) - $COLOR_YELLOW${1}$COLOR_OFF" >> $log_file_name
-    fi
+    echo -e "[WARN]  - $(date +%F-%T) - $COLOR_YELLOW${1}$COLOR_OFF" >> $log_file_name
 }
 
 # Use this to write error messages to the terminal
 log_error() {
-    if [[ -z $browser_watchdog_log_to_file ]]; then
-        echo -e "[ERROR] - $(date +%F-%T) - $COLOR_RED${1}$COLOR_OFF"
-    else
-        echo -e "[ERROR] - $(date +%F-%T) - $COLOR_RED${1}$COLOR_OFF" >> $log_file_name
-    fi
+    echo -e "[ERROR] - $(date +%F-%T) - $COLOR_RED${1}$COLOR_OFF" >> $log_file_name
 }
 
 # Function that checks a server for a restart signal
@@ -104,6 +92,7 @@ reboot_machine() {
 }
 
 start_watchdog() {
+	rm $log_file_name
     #sleep before sending out first request allow the browser to be fully booted
     sleep $initial_delay
     log_info "sending request to $server_url"
