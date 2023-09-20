@@ -31,7 +31,7 @@ return_value_restart=${browser_watchdog_return_value_restart:-1}
 return_value_no_restart=${browser_watchdog_return_value_no_restart:-0}
 server_check_interval=${browser_watchdog_server_check_interval:-300}
 initial_delay=${browser_watchdog_initial_delay:-60}
-log_file_name=${browser_watchdog_log_file_name:-"/var/log/watchdog_log.txt"}
+log_file_name=${browser_watchdog_log_file_name:-"/var/log/browser_watchdog.log"}
 
 # Add some terminal colors
 COLOR_OFF='\033[0m'       # Text colour reset
@@ -92,7 +92,11 @@ reboot_machine() {
 }
 
 start_watchdog() {
-	rm $log_file_name
+    # remove existing log file (simplest way to keep the size 
+    # of the log file to a minimum)
+    if [[ -f $log_file_name ]]; then
+        rm $log_file_name
+    fi
     #sleep before sending out first request allow the browser to be fully booted
     sleep $initial_delay
     log_info "sending request to $server_url"
