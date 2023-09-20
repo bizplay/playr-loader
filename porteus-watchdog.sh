@@ -25,7 +25,7 @@ system_uuid=$(cat /etc/version | tail -n 1 | sed 's/ID: //')
 
 # Server settings
 server_url=${browser_watchdog_server_url:-"http://ajax.playr.biz/watchdogs/${system_uuid}/command"}
-# NOTE: when a return value is added the match logic 
+# NOTE: when a return value is added the match logic
 #       in request_restart_signal has to be extended
 return_value_restart=${browser_watchdog_return_value_restart:-1}
 return_value_no_restart=${browser_watchdog_return_value_no_restart:-0}
@@ -70,8 +70,8 @@ request_restart_signal() {
     local result="$(curl --silent "$server_url")"
     local result_without_spaces=${result// /}
     log_info "received command from server: $result_without_spaces"
-	# use simple matches since this script should be 
-	# compatible with the ash whell (busybox)
+    # use simple matches since this script should be
+    # compatible with the ash whell (busybox)
     if [[ -z $result_without_spaces ]]; then
         echo $return_value_no_restart
     elif [[ "$result_without_spaces" == "$return_value_no_restart" ]]; then
@@ -92,11 +92,6 @@ reboot_machine() {
 }
 
 start_watchdog() {
-    # remove existing log file (simplest way to keep the size 
-    # of the log file to a minimum)
-    if [[ -f $log_file_name ]]; then
-        rm $log_file_name
-    fi
     #sleep before sending out first request allow the browser to be fully booted
     sleep $initial_delay
     log_info "sending request to $server_url"
@@ -112,16 +107,28 @@ start_watchdog() {
 ##########################################################################
 ###                          EXECUTION                                 ###
 ##########################################################################
+# remove existing log file (simplest way to keep the size
+# of the log file to a minimum)
+if [[ -f $log_file_name ]]; then
+    rm $log_file_name
+fi
+log_info "##########################################################################"
+log_info "###                                                                    ###"
+log_info "###                    start browser watchdog script                   ###"
+log_info "###                                                                    ###"
+log_info "##########################################################################"
+
+log_info "check if system_uuid is present"
 if [[ -z $system_uuid ]]; then
     log_error "machine_id is not defined!"
     exit 1
 fi
 
-log_info "starting watchdog for device $COLOR_GREEN${system_uuid}$COLOR_OFF"
-
+log_info "check if curl is installed"
 if ! which curl >/dev/null; then
     log_error "curl not installed on this system, please install curl"
     exit 1
 fi
 
+log_info "starting watchdog loop for device $COLOR_GREEN${system_uuid}$COLOR_OFF"
 start_watchdog
