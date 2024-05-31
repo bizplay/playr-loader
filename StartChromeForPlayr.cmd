@@ -71,8 +71,7 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
   ::
   set gpu_options=
   set persistency_options=
-  :: --disable-session-crashed-bubble has been deprecated since v57 at the latest
-  set no_nagging_options=--disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --no-default-browser-check --disable-infobars --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-session-crashed-bubble
+  set no_nagging_options=--disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --no-first-run --no-default-browser-check --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-search-engine-choice-screen
 
   :: Prevent the
   :: "Google Chrome didn't shut down correctly"
@@ -151,7 +150,7 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
 
   :: start chrome from a minimized cmd.exe using the options that were set up above
   ::
-  start /min cmd /c "%browser_executable% %gpu_options% %persistency_options% %no_nagging_options% --kiosk file:///%playr_loader_file_normalized%?channel=%channel%^&watchdog_id=%device_id%"
+  start /min cmd /c "%browser_executable% %gpu_options% %persistency_options% %no_nagging_options% --kiosk --app=file:///%playr_loader_file_normalized%?channel=%channel%^&watchdog_id=%device_id%"
 
   :: Watchdog
   ::
