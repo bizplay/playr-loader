@@ -71,7 +71,8 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
   ::
   set gpu_options=
   set persistency_options=
-  set no_nagging_options=--disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --no-first-run --no-default-browser-check --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-search-engine-choice-screen
+  :: --disable-session-crashed-bubble has been deprecated since v57 at the latest
+  set no_nagging_options=--disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --disable-first-run-ui --no-default-browser-check --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-search-engine-choice-screen
 
   :: Prevent the
   :: "Google Chrome didn't shut down correctly"
