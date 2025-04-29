@@ -223,9 +223,9 @@ open_playr() {
     gpu_options="--ignore-gpu-blocklist"
     persistency_options=""
     # --disable-session-crashed-bubble has been deprecated since v57 at the latest
-    no_nagging_options="--simulate-outdated-no-au='Tue, 31 Dec 2099 23:59:59 GMT' --disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --disable-first-run-ui --no-default-browser-check --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-search-engine-choice-screen"
+    no_nagging_options="--simulate-outdated-no-au='Tue, 31 Dec 2099 23:59:59 GMT' --disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --disable-first-run-ui --no-default-browser-check --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-search-engine-choice-screen --auto-accept-camera-and-microphone-capture"
 
-    
+
     browser_startup="${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app=file://${playr_loader_file}?channel=${channel}&reload_url=${reload_url}&watchdog_id=${uuid}&player_id=${uuid}"
     log_info "this is the startup :: $browser_startup"
 
