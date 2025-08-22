@@ -44,8 +44,9 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
     set device_id=%device_id:~0,36%
     set defined=true
   )
-  :: wnmic default
+  :: wnmic defaults
   if "%device_id%" == "00000000-0000-0000-0000-000000000000" ( set defined=false )
+  if "%device_id:~0,4%" == "wmic" ( set defined=false )
   :: registry default
   if "%device_id%" == "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF" ( set defined=false )
   :: hardware default
