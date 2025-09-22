@@ -224,9 +224,25 @@ open_playr() {
     persistency_options=""
     # --disable-session-crashed-bubble has been deprecated since v57 at the latest
     no_nagging_options="--simulate-outdated-no-au='Tue, 31 Dec 2099 23:59:59 GMT' --disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --disable-first-run-ui --no-default-browser-check --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-search-engine-choice-screen --use-fake-device-for-media-stream --auto-accept-camera-and-microphone-capture"
+    # On Raspberry Pi use a scaling factor of 2 when the screen resolution is set to 4K
+    # (assuming 4K is identified by a horizontal or vertical resolution greater than 1920)
+    if [ "$(uname -m)" == "aarch64" ]; then
+      horizontal = $(xrandr -q | awk -vi=0 '/\*/ {i++; if (i==1) print $1}' | cut -d'x' -f 1)
+      vertical = $(xrandr -q | awk -vi=0 '/\*/ {i++; if (i==1) print $1}' | cut -d'x' -f 2)
+      if [ "$horizontal" -gt "$vertical" ]]; then
+        if [ "$horizontal" -gt "1920" ]; then
+          scaling_options="--force-device-scale-factor=2"
+        fi
+      else
+        if [ "$vertical" -gt "1920" ]; then
+          scaling_options="--force-device-scale-factor=2"
+        fi
+      fi
+    else
+      scaling_options=""
+    fi
 
-
-    browser_startup="${gpu_options} ${persistency_options} ${no_nagging_options} --kiosk --app=file://${playr_loader_file}?channel=${channel}&reload_url=${reload_url}&watchdog_id=${uuid}&player_id=${uuid}"
+    browser_startup="${gpu_options} ${persistency_options} ${no_nagging_options} ${scaling_options} --kiosk --app=file://${playr_loader_file}?channel=${channel}&reload_url=${reload_url}&watchdog_id=${uuid}&player_id=${uuid}"
     log_info "this is the startup :: $browser_startup"
 
     # overwrite startup if it's a firefox browser
