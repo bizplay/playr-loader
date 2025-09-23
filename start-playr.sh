@@ -227,8 +227,8 @@ open_playr() {
     # On Raspberry Pi use a scaling factor of 2 when the screen resolution is set to 4K
     # (assuming 4K is identified by a horizontal or vertical resolution greater than 1920)
     if [ "$(uname -m)" == "aarch64" ]; then
-      horizontal = $(xrandr -q | awk -vi=0 '/\*/ {i++; if (i==1) print $1}' | cut -d'x' -f 1)
-      vertical = $(xrandr -q | awk -vi=0 '/\*/ {i++; if (i==1) print $1}' | cut -d'x' -f 2)
+      horizontal=$(xrandr -q | awk -vi=0 '/\*/ {i++; if (i==1) print $1}' | cut -d'x' -f 1)
+      vertical=$(xrandr -q | awk -vi=0 '/\*/ {i++; if (i==1) print $1}' | cut -d'x' -f 2)
       if [ "$horizontal" -gt "$vertical" ]]; then
         if [ "$horizontal" -gt "1920" ]; then
           scaling_options="--force-device-scale-factor=2"
