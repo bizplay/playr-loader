@@ -22,7 +22,13 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
   :: %USERPROFILE% points to your personal profile directory, that usually can be found
   :: at C:\Users\<your user name>
   ::
-  set playr_loader_file=%USERPROFILE%/Desktop/playr_loader.html
+  if exist "%USERPROFILE%\Desktop" (
+    :: local only Desktop
+    set playr_loader_file=%USERPROFILE%\Desktop\playr_loader.html
+  ) else (
+    :: Desktop on OneDrive
+    set playr_loader_file=%USERPROFILE%\OneDrive\Desktop\playr_loader.html
+  )
 
   :: use the url below if you want be able to set the channel to play on your dashboard.
   :: Note: using this setting requires a one time registration of the playback device
