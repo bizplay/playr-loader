@@ -156,7 +156,11 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
     set browser_executable="%ProgramFiles%\Google\Chrome\Application\chrome.exe"
   )
 
-  :: start chrome from a minimized cmd.exe using the options that were set up above
+  :: set mouse pointer to left bottom corner in case css 'mouse: none' does not work
+  ::
+  rundll32 user32.dll,SetCursorPos
+
+  :: start browser from a minimized cmd.exe using the options that were set up above
   ::
   start /min cmd /c "%browser_executable% %gpu_options% %persistency_options% %no_nagging_options% --kiosk --app=file:///%playr_loader_file_normalized%?channel=%channel%^&watchdog_id=%device_id%"
 

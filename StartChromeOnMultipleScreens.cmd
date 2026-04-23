@@ -149,17 +149,33 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
     )
   )
 
-  :: change the paths below to point at the different chrome.exe's that are installed on your computer
-  :: you can find the path to the chrome.exe by right clicking the (desktop) icon  of Chrome/Chrome Canary/Chromium, choosing properties
-  :: and looking in the Target field.
-  :: the code below should work after a normal installation of Google Chrome
+  :: the code below should work after a 'normal' installation of either Google Chrome or Chromium
   ::
-  if exist %ProgramFiles%\Google\Chrome\Application\chrome.exe (
-    set google_chrome_path="%ProgramFiles%\Google\Chrome\Application\chrome.exe"
-
-  ) else (
-    set google_chrome_path="%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
+  :: in case Chrome or Chromium cannot be found => default to Microsoft Edge
+  :: as up to date versions of that are also Blink (Chromium/Chrome redering engine) based
+  if exist "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" (
+    set browser_executable="%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
   )
+  if exist "%USERPROFILE%\AppData\Local\Chromium\Application\chrome.exe" (
+    set browser_executable="%USERPROFILE%\AppData\Local\Chromium\Application\chrome.exe"
+  )
+  if exist "%ProgramFiles(x86)%\Chromium\chrome.exe" (
+    set browser_executable="%ProgramFiles(x86)%\Chromium\chrome.exe"
+  )
+  if exist "%ProgramFiles%\Chromium\chrome.exe" (
+    set browser_executable="%ProgramFiles%\Chromium\chrome.exe"
+  )
+  if exist "%USERPROFILE%\AppData\Local\Google\Chrome\Application\chrome.exe" (
+    set browser_executable="%USERPROFILE%\AppData\Local\Google\Chrome\Application\chrome.exe"
+  )
+  if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
+    set browser_executable="%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
+  )
+  if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
+    set browser_executable="%ProgramFiles%\Google\Chrome\Application\chrome.exe"
+  )
+
+
 
   :: The window positions specified below will work when you use three 1080p screens (1920x1080)
   :: If you use screens with a different resolution you may need to change the values below.
@@ -173,9 +189,16 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
   setlocal enabledelayedexpansion
   set replace=%%20
   set playr_loader_file_normalized=%playr_loader_file: =!replace!%
-  start /min cmd /c "%google_chrome_path% --profile-directory=%user1% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position1% --kiosk file:///%playr_loader_file_normalized%?channel=%channel1%"
-  start /min cmd /c "%google_chrome_path% --profile-directory=%user2% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position2% --kiosk file:///%playr_loader_file_normalized%?channel=%channel2%"
-  start /min cmd /c "%google_chrome_path% --profile-directory=%user3% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position3% --kiosk file:///%playr_loader_file_normalized%?channel=%channel3%"
+
+  :: set mouse pointer to left bottom corner in case css 'mouse: none' does not work
+  ::
+  rundll32 user32.dll,SetCursorPos
+
+  :: start browser from a minimized cmd.exe using the options that were set up above
+  ::
+  start /min cmd /c "%browser_executable% --profile-directory=%user1% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position1% --kiosk file:///%playr_loader_file_normalized%?channel=%channel1%"
+  start /min cmd /c "%browser_executable% --profile-directory=%user2% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position2% --kiosk file:///%playr_loader_file_normalized%?channel=%channel2%"
+  start /min cmd /c "%browser_executable% --profile-directory=%user3% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position3% --kiosk file:///%playr_loader_file_normalized%?channel=%channel3%"
 
   :: Watchdog
   ::
