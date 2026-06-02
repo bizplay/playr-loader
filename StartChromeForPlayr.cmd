@@ -109,7 +109,7 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
       del "%LOCALAPPDATA%\Chromium\User Data\Default\Preferences" /Q
     )
   )
-  if exist "%%LOCALAPPDATA%\Chromium\User Data\" (
+  if exist "%LOCALAPPDATA%\Chromium\User Data\" (
     if exist "%LOCALAPPDATA%\Chromium\User Data\SingletonLock" (
       del "%LOCALAPPDATA%\Chromium\User Data\SingletonLock" /Q
     )
@@ -121,7 +121,7 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
       del "%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\Preferences" /Q
     )
   )
-  if exist "%%LOCALAPPDATA%\Microsoft\Edge\User Data\" (
+  if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\" (
     if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\SingletonLock" (
       del "%LOCALAPPDATA%\Microsoft\Edge\User Data\SingletonLock" /Q
     )
