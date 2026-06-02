@@ -24,45 +24,46 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
   ::
   if exist "%USERPROFILE%\Desktop" (
     :: local only Desktop
-    set playr_loader_file=%USERPROFILE%\Desktop\playr_loader.html
+    set "playr_loader_file=%USERPROFILE%\Desktop\playr_loader.html"
   ) else (
     :: Desktop on OneDrive
-    set playr_loader_file=%USERPROFILE%\OneDrive\Desktop\playr_loader.html
+    set "playr_loader_file=%USERPROFILE%\OneDrive\Desktop\playr_loader.html"
   )
 
   :: use the url below if you want be able to set the channel to play on your dashboard.
   :: Note: using this setting requires a one time registration of the playback device
   :: using the dashboard (under Settings/Players)
   ::
-  set channel=http://play.playr.biz
+  set "channel=http://play.playr.biz"
 
   :: Determine unique device ID
   ::
-  for /f "tokens=3" %%a in ('REG QUERY HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography /v MachineGuid ^| findstr /ri "REG_SZ"') do ( set device_id=%%a )
+  set "device_id="
+  for /f "tokens=3" %%a in ('REG QUERY HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography /v MachineGuid ^| findstr /ri "REG_SZ"') do ( set "device_id=%%a" )
   :: Plan b
   if not defined device_id (
   :: this works since the value we need is in the last line of the output of the command
-    for /f "tokens=* USEBACKQ" %%b in ('wmic csproduct get UUID') do ( set device_id=%%b )
+    for /f "tokens=* USEBACKQ" %%b in ('wmic csproduct get UUID') do ( set "device_id=%%b" )
   )
   if not defined device_id (
-    set defined=false
+    set "defined=false"
   ) else (
-    set device_id=%device_id:~0,36%
-    set defined=true
+    set "device_id=%device_id:~0,36%"
+    set "defined=true"
   )
   :: wnmic defaults
-  if "%device_id%" == "00000000-0000-0000-0000-000000000000" ( set defined=false )
-  if "%device_id:~0,4%" == "wmic" ( set defined=false )
+  if "%device_id%" == "00000000-0000-0000-0000-000000000000" ( set "defined=false" )
+  if "%device_id:~0,4%" == "wmic" ( set "defined=false" )
   :: registry default
-  if "%device_id%" == "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF" ( set defined=false )
+  if "%device_id%" == "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF" ( set "defined=false" )
   :: hardware default
-  if "%device_id%" == "00020003-0004-0005-0006-000700080009" ( set defined=false )
+  if "%device_id%" == "00020003-0004-0005-0006-000700080009" ( set "defined=false" )
   if "%defined%" == "true" ( goto DEVICE_ID_DEFINED )
 
   :: if a default id was found use the industry standard default and add the mac address to make it unique
-  for /f "tokens=1" %%c in ('getmac ^| findstr /ri "device"') do ( set mac=%%c )
-  set mac_address=%mac:-=:%
-  set device_id="00020003-0004-0005-0006-000700080009;%mac_address:~0,17%"
+  for /f "tokens=1" %%c in ('getmac ^| findstr /ri "device"') do ( set "mac=%%c" )
+  set "mac_address=%mac:-=:%"
+  set "device_id=00020003-0004-0005-0006-000700080009;%mac_address:~0,17%"
 
   :DEVICE_ID_DEFINED
 
@@ -76,10 +77,10 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
   :: Define the command line options for starting browser
   :: set gpu_options="--ignore-gpu-blocklist --enable-experimental-canvas-features --enable-gpu-rasterization --enable-threaded-gpu-rasterization"
   ::
-  set gpu_options=
-  set persistency_options=
+  set "gpu_options="
+  set "persistency_options="
   :: --disable-session-crashed-bubble has been deprecated since v57 at the latest
-  set no_nagging_options=--disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --disable-first-run-ui --no-default-browser-check --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-search-engine-choice-screen
+  set "no_nagging_options=--disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --disable-first-run-ui --no-default-browser-check --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-search-engine-choice-screen"
 
   :: Prevent the
   :: "Google Chrome didn't shut down correctly"
@@ -130,46 +131,46 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
   :: The code below should work as is and should not require any changes
   ::
   setlocal enabledelayedexpansion
-  set replace=%%20
-  set playr_loader_file_normalized=%playr_loader_file: =!replace!%
+  set "replace=%%20"
+  set "playr_loader_file_normalized=%playr_loader_file: =!replace!%"
 
   :: the code below should work after a 'normal' installation of either Google Chrome or Chromium
   ::
   :: if all else fails, use Internet Explorer
-  set browser_executable="iexplore.exe"
+  set "browser_executable=iexplore.exe"
   if exist "%ProgramFiles(x86)%\Internet Explorer\iexplore.exe" (
-    set browser_executable="%ProgramFiles(x86)%\Internet Explorer\iexplore.exe"
+    set "browser_executable=%ProgramFiles(x86)%\Internet Explorer\iexplore.exe"
   )
   :: in case even Microsoft Edge cannot be found => default to Microsoft Internet Explorer
   :: this will certainly not give the best results, command line parameters might give errors
   if exist "%ProgramFiles%\Internet Explorer\iexplore.exe" (
-    set browser_executable="%ProgramFiles%\Internet Explorer\iexplore.exe"
+    set "browser_executable=%ProgramFiles%\Internet Explorer\iexplore.exe"
   )
   if exist "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" (
-    set browser_executable="%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"
+    set "browser_executable=%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"
   )
   :: in case Chrome or Chromium cannot be found => default to Microsoft Edge
   :: as up to date versions of that are also Blink (Chromium/Chrome redering engine) based
   if exist "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" (
-    set browser_executable="%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
+    set "browser_executable=%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
   )
   if exist "%LOCALAPPDATA%\Chromium\Application\chrome.exe" (
-    set browser_executable="%LOCALAPPDATA%\Chromium\Application\chrome.exe"
+    set "browser_executable=%LOCALAPPDATA%\Chromium\Application\chrome.exe"
   )
   if exist "%ProgramFiles(x86)%\Chromium\chrome.exe" (
-    set browser_executable="%ProgramFiles(x86)%\Chromium\chrome.exe"
+    set "browser_executable=%ProgramFiles(x86)%\Chromium\chrome.exe"
   )
   if exist "%ProgramFiles%\Chromium\chrome.exe" (
-    set browser_executable="%ProgramFiles%\Chromium\chrome.exe"
+    set "browser_executable=%ProgramFiles%\Chromium\chrome.exe"
   )
   if exist "%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe" (
-    set browser_executable="%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"
+    set "browser_executable=%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"
   )
   if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
-    set browser_executable="%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
+    set "browser_executable=%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
   )
   if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
-    set browser_executable="%ProgramFiles%\Google\Chrome\Application\chrome.exe"
+    set "browser_executable=%ProgramFiles%\Google\Chrome\Application\chrome.exe"
   )
 
   :: set mouse pointer to left bottom corner in case css 'mouse: none' does not work
@@ -186,33 +187,33 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
   :: device if it receives that command
   :: TODO; check if browser is still running and kill and restart it if not
   ::
-  set watchdog_command=curl -k "https://ajax.playr.biz/watchdogs/%device_id%/command" -o - -s
+  set "watchdog_command=curl -k "https://ajax.playr.biz/watchdogs/%device_id%/command" -o - -s"
   :: interval for checking the server; 5 minutes
-  set watchdog_interval_in_sec=300
-  set reboot_command=1
+  set "watchdog_interval_in_sec=300"
+  set "reboot_command=1"
   :: set default response in case the server does not respond (4xx/5xx status code)
-  set response=2
+  set "response=2"
   :: first wait for the player to start properly
   timeout /nobreak /t %watchdog_interval_in_sec%
 
   :WATCHDOG_LOOP
   :: get command from the server
-  for /f %%d in ('%watchdog_command%') do ( set response=%%d )
+  for /f %%d in ('%watchdog_command%') do ( set "response=%%d" )
   :: remove html/json tag/structure non-word characters
   :: to make the following full proof, response should be checked to be
   :: defined after each replacement
-  set response=%response:<=%
-  set response=%response:>=%
-  set response=%response:!=%
-  set response=%response:/=%
-  set response=%response:[=%
-  set response=%response:]=%
-  set response=%response:{=%
-  set response=%response:}=%
+  set "response=%response:<=%"
+  set "response=%response:>=%"
+  set "response=%response:!=%"
+  set "response=%response:/=%"
+  set "response=%response:[=%"
+  set "response=%response:]=%"
+  set "response=%response:{=%"
+  set "response=%response:}=%"
   if defined response (
-    set watchdog_response=%response:~0,1%
+    set "watchdog_response=%response:~0,1%"
   ) else (
-    set watchdog_response=2
+    set "watchdog_response=2"
   )
   if "%reboot_command%" == "%watchdog_response%" (
     echo Rebooting the device...
