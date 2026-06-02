@@ -18,17 +18,37 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
   :: FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
   :: OTHER DEALINGS IN THE SOFTWARE.
 
-  :: make sure that the path to the playr_loader.html file is correct in your situation
+  :: Log file for troubleshooting startup issues on signage players
+  set "playr_log=%TEMP%\playr_startup.log"
+  :: Rotate log when it grows beyond 1 MB
+  if exist "%playr_log%" (
+    for %%F in ("%playr_log%") do if %%~zF geq 1048576 del "%playr_log%"
+  )
+  echo.>> "%playr_log%"
+  echo %date% %time% ===== StartChromeForPlayr =====>> "%playr_log%"
+  echo %date% %time% Script: %~f0>> "%playr_log%"
+
+  :: Locate playr_loader.html on the local Desktop or the OneDrive Desktop
   :: %USERPROFILE% points to your personal profile directory, that usually can be found
   :: at C:\Users\<your user name>
   ::
-  if exist "%USERPROFILE%\Desktop" (
-    :: local only Desktop
-    set "playr_loader_file=%USERPROFILE%\Desktop\playr_loader.html"
+  set "playr_loader_desktop=%USERPROFILE%\Desktop\playr_loader.html"
+  set "playr_loader_onedrive=%USERPROFILE%\OneDrive\Desktop\playr_loader.html"
+  if exist "%playr_loader_desktop%" (
+    set "playr_loader_file=%playr_loader_desktop%"
+  ) else if exist "%playr_loader_onedrive%" (
+    set "playr_loader_file=%playr_loader_onedrive%"
   ) else (
-    :: Desktop on OneDrive
-    set "playr_loader_file=%USERPROFILE%\OneDrive\Desktop\playr_loader.html"
+    echo %date% %time% ERROR: playr_loader.html not found at:>> "%playr_log%"
+    echo %date% %time%   %playr_loader_desktop%>> "%playr_log%"
+    echo %date% %time%   %playr_loader_onedrive%>> "%playr_log%"
+    echo ERROR: playr_loader.html not found at:
+    echo   %playr_loader_desktop%
+    echo   %playr_loader_onedrive%
+    timeout /t 30 >nul
+    exit /b 1
   )
+  echo %date% %time% playr_loader file found at: %playr_loader_file%>> "%playr_log%"
 
   :: use the url below if you want be able to set the channel to play on your dashboard.
   :: Note: using this setting requires a one time registration of the playback device
@@ -66,6 +86,7 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
   set "device_id=00020003-0004-0005-0006-000700080009;%mac_address:~0,17%"
 
   :DEVICE_ID_DEFINED
+  echo %date% %time% Device ID: %device_id%>> "%playr_log%"
 
   :: change and use the url below if you want to play a specific channel that cannot be
   :: changed from your dashboard
@@ -173,13 +194,34 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
     set "browser_executable=%ProgramFiles%\Google\Chrome\Application\chrome.exe"
   )
 
+  :: Pre-flight: browser executable must exist
+  if not exist "%browser_executable%" (
+    where "%browser_executable%" >nul 2>nul
+    if errorlevel 1 (
+      echo %date% %time% ERROR: Browser not found: %browser_executable%>> "%playr_log%"
+      echo ERROR: Browser not found: %browser_executable%
+      timeout /t 30 >nul
+      exit /b 1
+    )
+  )
+  echo %browser_executable% | findstr /i /c:"chrome.exe" /c:"msedge.exe" /c:"chromium" >nul
+  if errorlevel 1 (
+    echo %date% %time% WARNING: Non-Chromium browser selected; kiosk flags may not work>> "%playr_log%"
+  )
+  echo %date% %time% Browser: %browser_executable%>> "%playr_log%"
+  echo %date% %time% Channel: %channel%>> "%playr_log%"
+  set "app_url=file:///%playr_loader_file_normalized%?channel=%channel%&watchdog_id=%device_id%"
+  echo %date% %time% URL: !app_url!>> "%playr_log%"
+
   :: set mouse pointer to left bottom corner in case css 'mouse: none' does not work
   ::
   rundll32 user32.dll,SetCursorPos
 
   :: start browser from a minimized cmd.exe using the options that were set up above
   ::
+  echo %date% %time% Launching browser>> "%playr_log%"
   start /min cmd /c "%browser_executable% %gpu_options% %persistency_options% %no_nagging_options% --kiosk --app=file:///%playr_loader_file_normalized%?channel=%channel%^&watchdog_id=%device_id%"
+  echo %date% %time% Browser launch requested>> "%playr_log%"
 
   :: Watchdog
   ::
@@ -187,9 +229,16 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
   :: device if it receives that command
   :: TODO; check if browser is still running and kill and restart it if not
   ::
+  where curl >nul 2>nul
+  if errorlevel 1 (
+    echo %date% %time% WARNING: curl not found; remote reboot watchdog disabled>> "%playr_log%"
+    echo WARNING: curl not found. Watchdog disabled. See %playr_log%
+    exit /b 0
+  )
   set "watchdog_command=curl -k "https://ajax.playr.biz/watchdogs/%device_id%/command" -o - -s"
   :: interval for checking the server; 5 minutes
   set "watchdog_interval_in_sec=300"
+  echo %date% %time% Watchdog: polling every %watchdog_interval_in_sec%s>> "%playr_log%"
   set "reboot_command=1"
   :: set default response in case the server does not respond (4xx/5xx status code)
   set "response=2"
@@ -216,6 +265,7 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
     set "watchdog_response=2"
   )
   if "%reboot_command%" == "%watchdog_response%" (
+    echo %date% %time% Reboot command received from server>> "%playr_log%"
     echo Rebooting the device...
     shutdown -r
     exit /b 0
