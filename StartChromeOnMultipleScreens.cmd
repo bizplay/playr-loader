@@ -93,59 +93,90 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
   :: "Google Chrome didn't shut down correctly"
   :: warning when restarting after a crash of Windows, power outage or
   :: other non standard way to end Windows.
+  :: Note: %LOCALAPPDATA% is equal to %USERPROFILE%\AppData\Local
   :: Choose one of the following options. The first only deletes one file
   :: the second option deletes all browser data such as cached videos. The
   :: second option should only be used on devices that have very little disk space
   :: to implement the second option replace the three lines inside the following
   :: if clause with this
-  :: del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\Default\" /S /Q
-  if exist "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\%user1%" (
-    if exist "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\%user1%\Preferences" (
-      del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\%user1%\Preferences" /Q
+  :: del "%LOCALAPPDATA%\Google\Chrome\User Data\Default\" /S /Q
+  if exist "%LOCALAPPDATA%\Google\Chrome\User Data\Default" (
+    if exist "%LOCALAPPDATA%\Google\Chrome\User Data\Default\Preferences" (
+      del "%LOCALAPPDATA%\Google\Chrome\User Data\Default\Preferences" /Q
     )
   )
-  if exist "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\%user2%" (
-    if exist "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\%user2%\Preferences" (
-      del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\%user2%\Preferences" /Q
+  if exist "%LOCALAPPDATA%\Google\Chrome\User Data\" (
+    if exist "%LOCALAPPDATA%\Google\Chrome\User Data\SingletonLock" (
+      del "%LOCALAPPDATA%\Google\Chrome\User Data\SingletonLock" /Q
     )
   )
-  if exist "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\%user3%" (
-    if exist "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\%user3%\Preferences" (
-      del "%USERPROFILE%\AppData\Local\Google\Chrome\User Data\%user3%\Preferences" /Q
+  if exist "%LOCALAPPDATA%\Google\Chrome\User Data\%user1%" (
+    if exist "%LOCALAPPDATA%\Google\Chrome\User Data\%user1%\Preferences" (
+      del "%LOCALAPPDATA%\Google\Chrome\User Data\%user1%\Preferences" /Q
+    )
+  )
+  if exist "%LOCALAPPDATA%\Google\Chrome\User Data\%user2%" (
+    if exist "%LOCALAPPDATA%\Google\Chrome\User Data\%user2%\Preferences" (
+      del "%LOCALAPPDATA%\Google\Chrome\User Data\%user2%\Preferences" /Q
+    )
+  )
+  if exist "%LOCALAPPDATA%\Google\Chrome\User Data\%user3%" (
+    if exist "%LOCALAPPDATA%\Google\Chrome\User Data\%user3%\Preferences" (
+      del "%LOCALAPPDATA%\Google\Chrome\User Data\%user3%\Preferences" /Q
     )
   )
   :: when using Chromium use one of the two options, see above
-  :: del "%USERPROFILE%\AppData\Local\Chromium\User Data\Default\" /S /Q
-  if exist "%USERPROFILE%\AppData\Local\Chromium\User Data\%user1%" (
-    if exist "%USERPROFILE%\AppData\Local\Chromium\User Data\%user1%\Preferences" (
-      del "%USERPROFILE%\AppData\Local\Chromium\User Data\%user1%\Preferences" /Q
+  :: del "%LOCALAPPDATA%\Chromium\User Data\Default\" /S /Q
+  if exist "%LOCALAPPDATA%\Chromium\User Data\Default" (
+    if exist "%LOCALAPPDATA%\Chromium\User Data\Default\Preferences" (
+      del "%LOCALAPPDATA%\Chromium\User Data\Default\Preferences" /Q
     )
   )
-  if exist "%USERPROFILE%\AppData\Local\Chromium\User Data\%user2%" (
-    if exist "%USERPROFILE%\AppData\Local\Chromium\User Data\%user2%\Preferences" (
-      del "%USERPROFILE%\AppData\Local\Chromium\User Data\%user2%\Preferences" /Q
+  if exist "%LOCALAPPDATA%\Chromium\User Data\" (
+    if exist "%LOCALAPPDATA%\Chromium\User Data\SingletonLock" (
+      del "%LOCALAPPDATA%\Chromium\User Data\SingletonLock" /Q
     )
   )
-  if exist "%USERPROFILE%\AppData\Local\Chromium\User Data\%user3%" (
-    if exist "%USERPROFILE%\AppData\Local\Chromium\User Data\%user3%\Preferences" (
-      del "%USERPROFILE%\AppData\Local\Chromium\User Data\%user3%\Preferences" /Q
+  if exist "%LOCALAPPDATA%\Chromium\User Data\%user1%" (
+    if exist "%LOCALAPPDATA%\Chromium\User Data\%user1%\Preferences" (
+      del "%LOCALAPPDATA%\Chromium\User Data\%user1%\Preferences" /Q
+    )
+  )
+  if exist "%LOCALAPPDATA%\Chromium\User Data\%user2%" (
+    if exist "%LOCALAPPDATA%\Chromium\User Data\%user2%\Preferences" (
+      del "%LOCALAPPDATA%\Chromium\User Data\%user2%\Preferences" /Q
+    )
+  )
+  if exist "%LOCALAPPDATA%\Chromium\User Data\%user3%" (
+    if exist "%LOCALAPPDATA%\Chromium\User Data\%user3%\Preferences" (
+      del "%LOCALAPPDATA%\Chromium\User Data\%user3%\Preferences" /Q
     )
   )
   :: when using Microsoft Edge use one of the two options, see above
-  :: del "%USERPROFILE%\AppData\Local\Chromium\User Data\Default\" /S /Q
-  if exist "%USERPROFILE%\AppData\Local\Microsoft\Edge\User Data\%user1%" (
-    if exist "%USERPROFILE%\AppData\Local\Microsoft\Edge\User Data\%user1%\Preferences" (
-      del "%USERPROFILE%\AppData\Local\Microsoft\Edge\User Data\%user1%\Preferences" /Q
+  :: del "%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\" /S /Q
+  if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\Default" (
+    if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\Preferences" (
+      del "%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\Preferences" /Q
     )
   )
-  if exist "%USERPROFILE%\AppData\Local\Microsoft\Edge\User Data\%user2%" (
-    if exist "%USERPROFILE%\AppData\Local\Microsoft\Edge\User Data\%user2%\Preferences" (
-      del "%USERPROFILE%\AppData\Local\Microsoft\Edge\User Data\%user2%\Preferences" /Q
+  if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\" (
+    if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\SingletonLock" (
+      del "%LOCALAPPDATA%\Microsoft\Edge\User Data\SingletonLock" /Q
     )
   )
-  if exist "%USERPROFILE%\AppData\Local\Microsoft\Edge\User Data\%user3%" (
-    if exist "%USERPROFILE%\AppData\Local\Microsoft\Edge\User Data\%user3%\Preferences" (
-      del "%USERPROFILE%\AppData\Local\Microsoft\Edge\User Data\%user3%\Preferences" /Q
+  if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\%user1%" (
+    if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\%user1%\Preferences" (
+      del "%LOCALAPPDATA%\Microsoft\Edge\User Data\%user1%\Preferences" /Q
+    )
+  )
+  if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\%user2%" (
+    if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\%user2%\Preferences" (
+      del "%LOCALAPPDATA%\Microsoft\Edge\User Data\%user2%\Preferences" /Q
+    )
+  )
+  if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\%user3%" (
+    if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\%user3%\Preferences" (
+      del "%LOCALAPPDATA%\Microsoft\Edge\User Data\%user3%\Preferences" /Q
     )
   )
 
@@ -156,8 +187,8 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
   if exist "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" (
     set browser_executable="%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
   )
-  if exist "%USERPROFILE%\AppData\Local\Chromium\Application\chrome.exe" (
-    set browser_executable="%USERPROFILE%\AppData\Local\Chromium\Application\chrome.exe"
+  if exist "%LOCALAPPDATA%\Chromium\Application\chrome.exe" (
+    set browser_executable="%LOCALAPPDATA%\Chromium\Application\chrome.exe"
   )
   if exist "%ProgramFiles(x86)%\Chromium\chrome.exe" (
     set browser_executable="%ProgramFiles(x86)%\Chromium\chrome.exe"
@@ -165,8 +196,8 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
   if exist "%ProgramFiles%\Chromium\chrome.exe" (
     set browser_executable="%ProgramFiles%\Chromium\chrome.exe"
   )
-  if exist "%USERPROFILE%\AppData\Local\Google\Chrome\Application\chrome.exe" (
-    set browser_executable="%USERPROFILE%\AppData\Local\Google\Chrome\Application\chrome.exe"
+  if exist "%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe" (
+    set browser_executable="%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"
   )
   if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
     set browser_executable="%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
