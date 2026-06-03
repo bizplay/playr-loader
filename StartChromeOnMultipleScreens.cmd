@@ -17,6 +17,7 @@
 setlocal EnableExtensions EnableDelayedExpansion
 
 :: Restart this script minimized (ref: https://stackoverflow.com/a/22357573/414376)
+::
 if not DEFINED IS_MINIMIZED (
   set "IS_MINIMIZED=1"
   start "" /min "%~dpnx0" %*
@@ -25,6 +26,7 @@ if not DEFINED IS_MINIMIZED (
  
 
 :: Log file for troubleshooting startup issues on signage players
+::
 set "playr_log=%TEMP%\playr_startup.log"
 :: Rotate log when it grows beyond 1 MB
 if exist "%playr_log%" (
@@ -116,98 +118,27 @@ echo %date% %time% Device ID: %device_id%>> "%playr_log%"
 set "gpu_options="
 set "persistency_options="
   :: --disable-session-crashed-bubble has been deprecated since v57 at the latest
-set "no_nagging_options=--disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --disable-first-run-ui --no-default-browser-check --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-search-engine-choice-screen"
+set "no_nagging_options=--disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --disable-first-run-ui --no-default-browser-check --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-search-engine-choice-screen --hide-crash-restore-bubble"
 
-:: Prevent the
-:: "Google Chrome didn't shut down correctly"
-:: warning when restarting after a crash of Windows, power outage or
-:: other non standard way to end Windows.
-:: Note: %LOCALAPPDATA% is equal to %USERPROFILE%\AppData\Local
-:: Choose one of the following options. The first only deletes one file
-:: the second option deletes all browser data such as cached videos. The
-:: second option should only be used on devices that have very little disk space
-:: to implement the second option replace the three lines inside the following
-:: if clause with this
-:: del "%LOCALAPPDATA%\Google\Chrome\User Data\Default\" /S /Q
-if exist "%LOCALAPPDATA%\Google\Chrome\User Data\Default" (
-  if exist "%LOCALAPPDATA%\Google\Chrome\User Data\Default\Preferences" (
-    del "%LOCALAPPDATA%\Google\Chrome\User Data\Default\Preferences" /Q
-  )
+:: Dedicated Playr browser profile - avoids touching the user's normal Chrome/Edge profile.
+:: Preventing the "didn't shut down correctly" warning without deleting Preferences, if patching that file is possible.
+::
+set "playr_profile_dir=%LOCALAPPDATA%\PlayrBrowserProfile"
+if not exist "%playr_profile_dir%" mkdir "%playr_profile_dir%"
+:: Remove only volatile lock files from the dedicated profile.
+:: for %%F in ("%playr_profile_dir%\SingletonLock" "%playr_profile_dir%\SingletonCookie" "%playr_profile_dir%\SingletonSocket") do (
+for %%F in ("%playr_profile_dir%\SingletonLock") do (
+  if exist %%~F del %%~F /Q >nul 2>nul
 )
-if exist "%LOCALAPPDATA%\Google\Chrome\User Data\" (
-  if exist "%LOCALAPPDATA%\Google\Chrome\User Data\SingletonLock" (
-    del "%LOCALAPPDATA%\Google\Chrome\User Data\SingletonLock" /Q
-  )
-)
-if exist "%LOCALAPPDATA%\Google\Chrome\User Data\%user1%" (
-  if exist "%LOCALAPPDATA%\Google\Chrome\User Data\%user1%\Preferences" (
-    del "%LOCALAPPDATA%\Google\Chrome\User Data\%user1%\Preferences" /Q
-  )
-)
-if exist "%LOCALAPPDATA%\Google\Chrome\User Data\%user2%" (
-  if exist "%LOCALAPPDATA%\Google\Chrome\User Data\%user2%\Preferences" (
-    del "%LOCALAPPDATA%\Google\Chrome\User Data\%user2%\Preferences" /Q
-  )
-)
-if exist "%LOCALAPPDATA%\Google\Chrome\User Data\%user3%" (
-  if exist "%LOCALAPPDATA%\Google\Chrome\User Data\%user3%\Preferences" (
-    del "%LOCALAPPDATA%\Google\Chrome\User Data\%user3%\Preferences" /Q
-  )
-)
-:: when using Chromium use one of the two options, see above
-:: del "%LOCALAPPDATA%\Chromium\User Data\Default\" /S /Q
-if exist "%LOCALAPPDATA%\Chromium\User Data\Default" (
-  if exist "%LOCALAPPDATA%\Chromium\User Data\Default\Preferences" (
-    del "%LOCALAPPDATA%\Chromium\User Data\Default\Preferences" /Q
-  )
-)
-if exist "%LOCALAPPDATA%\Chromium\User Data\" (
-  if exist "%LOCALAPPDATA%\Chromium\User Data\SingletonLock" (
-    del "%LOCALAPPDATA%\Chromium\User Data\SingletonLock" /Q
-  )
-)
-if exist "%LOCALAPPDATA%\Chromium\User Data\%user1%" (
-  if exist "%LOCALAPPDATA%\Chromium\User Data\%user1%\Preferences" (
-    del "%LOCALAPPDATA%\Chromium\User Data\%user1%\Preferences" /Q
-  )
-)
-if exist "%LOCALAPPDATA%\Chromium\User Data\%user2%" (
-  if exist "%LOCALAPPDATA%\Chromium\User Data\%user2%\Preferences" (
-    del "%LOCALAPPDATA%\Chromium\User Data\%user2%\Preferences" /Q
-  )
-)
-if exist "%LOCALAPPDATA%\Chromium\User Data\%user3%" (
-  if exist "%LOCALAPPDATA%\Chromium\User Data\%user3%\Preferences" (
-    del "%LOCALAPPDATA%\Chromium\User Data\%user3%\Preferences" /Q
-  )
-)
-:: when using Microsoft Edge use one of the two options, see above
-:: del "%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\" /S /Q
-if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\Default" (
-  if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\Preferences" (
-    del "%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\Preferences" /Q
-  )
-)
-if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\" (
-  if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\SingletonLock" (
-    del "%LOCALAPPDATA%\Microsoft\Edge\User Data\SingletonLock" /Q
-  )
-)
-if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\%user1%" (
-  if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\%user1%\Preferences" (
-    del "%LOCALAPPDATA%\Microsoft\Edge\User Data\%user1%\Preferences" /Q
-  )
-)
-if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\%user2%" (
-  if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\%user2%\Preferences" (
-    del "%LOCALAPPDATA%\Microsoft\Edge\User Data\%user2%\Preferences" /Q
-  )
-)
-if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\%user3%" (
-  if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\%user3%\Preferences" (
-    del "%LOCALAPPDATA%\Microsoft\Edge\User Data\%user3%\Preferences" /Q
-  )
-)
+:: Patch Preferences for each screen profile (Screen1, Screen2, Screen3).
+:: If the dedicated profile has a Preferences file, mark it as cleanly exited or 
+:: delete it if patching the content of the file is impossible.
+:: Since playback might not work if the Preferences file indicates that the browser 
+:: crashed, it is worth taking the risk of deleting it in the exceptional 
+:: case that patching it is not possible.
+call :PATCH_PLAYR_PROFILE_PREFERENCES "%user1%"
+call :PATCH_PLAYR_PROFILE_PREFERENCES "%user2%"
+call :PATCH_PLAYR_PROFILE_PREFERENCES "%user3%"
 
 :: the code below should work after a 'normal' installation of either Google Chrome or Chromium
 ::
@@ -251,9 +182,8 @@ if errorlevel 1 (
   echo %date% %time% WARNING: Non-Chromium browser selected; kiosk flags may not work>> "%playr_log%"
 )
 echo %date% %time% Browser: %browser_executable%>> "%playr_log%"
+echo %date% %time% Profile: %playr_profile_dir% (%user1%, %user2%, %user3%)>> "%playr_log%"
 echo %date% %time% Channels: %channel1% | %channel2% | %channel3%>> "%playr_log%"
-
-
 
 :: The window positions specified below will work when you use three 1080p screens (1920x1080)
 :: If you use screens with a different resolution you may need to change the values below.
@@ -262,8 +192,6 @@ set "screen_position1=50,20"
 set "screen_position2=2000,20"
 set "screen_position3=4000,20"
 
-:: The code below should work as is and should not require any changes
-::
 set "replace=%%20"
 set "playr_loader_file_normalized=%playr_loader_file: =!replace!%"
 set "app_url1=file:///%playr_loader_file_normalized%?channel=%channel1%"
@@ -279,6 +207,8 @@ echo %date% %time% Browser process: %browser_process_name% (expect 3 instances)>
 ::
 rundll32 user32.dll,SetCursorPos
 
+:: Launch the (three) full screen browser
+::
 call :LAUNCH_PLAYR_BROWSERS
 
 :: Watchdog: remote reboot command (curl) and local browser restart loop
@@ -348,10 +278,92 @@ goto :eof
 
 :LAUNCH_PLAYR_BROWSERS
 echo %date% %time% Launching multi-screen browsers>> "%playr_log%"
-start "" "%browser_executable%" --profile-directory=%user1% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position1% --kiosk --app="!app_url1!"
-start "" "%browser_executable%" --profile-directory=%user2% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position2% --kiosk --app="!app_url2!"
-start "" "%browser_executable%" --profile-directory=%user3% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position3% --kiosk --app="!app_url3!"
+start "" "%browser_executable%" --user-data-dir="%playr_profile_dir%" --profile-directory=%user1% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position1% --start-fullscreen --kiosk --app="!app_url1!"
+start "" "%browser_executable%" --user-data-dir="%playr_profile_dir%" --profile-directory=%user2% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position2% --start-fullscreen --kiosk --app="!app_url2!"
+start "" "%browser_executable%" --user-data-dir="%playr_profile_dir%" --profile-directory=%user3% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position3% --start-fullscreen --kiosk --app="!app_url3!"
 echo %date% %time% Browser launch requested for all screens>> "%playr_log%"
+exit /b 0
+
+:PATCH_PLAYR_PROFILE_PREFERENCES
+set "PLAYR_PROFILE=%playr_profile_dir%"
+set "PLAYR_PROFILE_SUBDIR=%~1"
+set "powershell_exe="
+if exist "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" (
+  set "powershell_exe=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+)
+if not defined powershell_exe if exist "%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe" (
+  set "powershell_exe=%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe"
+)
+if not defined powershell_exe (
+  for /f "delims=" %%P in ('where powershell 2^>nul') do (
+    if not defined powershell_exe set "powershell_exe=%%P"
+  )
+)
+if defined powershell_exe (
+  echo %date% %time% Patching %PLAYR_PROFILE_SUBDIR% Preferences via PowerShell>> "%playr_log%"
+  "%powershell_exe%" -NoProfile -ExecutionPolicy Bypass -Command "$profileDir=$env:PLAYR_PROFILE; $sub=$env:PLAYR_PROFILE_SUBDIR; $p=Join-Path $profileDir (Join-Path $sub 'Preferences'); if(Test-Path $p){ try { $j=Get-Content -Raw $p | ConvertFrom-Json; if($null -eq $j.profile){ $j | Add-Member -MemberType NoteProperty -Name profile -Value ([pscustomobject]@{}) }; if($j.profile.PSObject.Properties.Name -contains 'exit_type'){ $j.profile.exit_type='Normal' } else { $j.profile | Add-Member -MemberType NoteProperty -Name exit_type -Value 'Normal' }; if($j.profile.PSObject.Properties.Name -contains 'exited_cleanly'){ $j.profile.exited_cleanly=$true } else { $j.profile | Add-Member -MemberType NoteProperty -Name exited_cleanly -Value $true }; $j | ConvertTo-Json -Depth 100 | Set-Content -Encoding UTF8 $p } catch { Rename-Item $p ($p + '.bad.' + (Get-Date -Format 'yyyyMMddHHmmss')) -Force } }" >nul 2>nul
+  exit /b 0
+)
+set "cscript_exe="
+if exist "%SystemRoot%\System32\cscript.exe" set "cscript_exe=%SystemRoot%\System32\cscript.exe"
+if not defined cscript_exe (
+  for /f "delims=" %%C in ('where cscript 2^>nul') do (
+    if not defined cscript_exe set "cscript_exe=%%C"
+  )
+)
+if defined cscript_exe (
+  echo %date% %time% PowerShell not found; patching %PLAYR_PROFILE_SUBDIR% Preferences via cscript>> "%playr_log%"
+  call :WRITE_PLAYR_PATCH_PREFERENCES
+  "%cscript_exe%" //nologo "%TEMP%\playr_patch_preferences.vbs" "%playr_profile_dir%" "%PLAYR_PROFILE_SUBDIR%" >nul 2>nul
+  exit /b 0
+)
+echo %date% %time% WARNING: PowerShell and cscript unavailable; deleting %PLAYR_PROFILE_SUBDIR% Preferences>> "%playr_log%"
+if exist "%playr_profile_dir%\%PLAYR_PROFILE_SUBDIR%\Preferences" (
+  del "%playr_profile_dir%\%PLAYR_PROFILE_SUBDIR%\Preferences" /Q >nul 2>nul
+)
+exit /b 0
+
+:WRITE_PLAYR_PATCH_PREFERENCES
+set "playr_patch_vbs=%TEMP%\playr_patch_preferences.vbs"
+if exist "%playr_patch_vbs%" del "%playr_patch_vbs%" /Q >nul 2>nul
+(
+echo Option Explicit
+echo Dim profileDir, profileSubdir, prefsPath, fso, ts, content, badName, q
+echo profileDir = WScript.Arguments^(0^)
+echo If WScript.Arguments.Count ^>= 2 Then
+echo   profileSubdir = WScript.Arguments^(1^)
+echo   prefsPath = profileDir ^& "\" ^& profileSubdir ^& "\Preferences"
+echo Else
+echo   prefsPath = profileDir ^& "\Default\Preferences"
+echo End If
+echo Set fso = CreateObject^("Scripting.FileSystemObject"^)
+echo If Not fso.FileExists^(prefsPath^) Then WScript.Quit 0
+echo On Error Resume Next
+echo Set ts = fso.OpenTextFile^(prefsPath, 1, False^)
+echo content = ts.ReadAll
+echo ts.Close
+echo If Err.Number ^<^> 0 Then
+echo   badName = prefsPath ^& ".bad." ^& Replace^(Replace^(Replace^(CStr^(Now^), ":", ""^), "/", ""^), " ", ""^)
+echo   fso.MoveFile prefsPath, badName
+echo   WScript.Quit 1
+echo End If
+echo q = Chr^(34^)
+echo content = Replace^(content, q ^& "exited_cleanly" ^& q ^& ":false", q ^& "exited_cleanly" ^& q ^& ":true"^)
+echo content = Replace^(content, q ^& "exited_cleanly" ^& q ^& ": false", q ^& "exited_cleanly" ^& q ^& ": true"^)
+echo content = Replace^(content, q ^& "exit_type" ^& q ^& ":" ^& q ^& "Crashed" ^& q, q ^& "exit_type" ^& q ^& ":" ^& q ^& "Normal" ^& q^)
+echo content = Replace^(content, q ^& "exit_type" ^& q ^& ": " ^& q ^& "Crashed" ^& q, q ^& "exit_type" ^& q ^& ": " ^& q ^& "Normal" ^& q^)
+echo content = Replace^(content, q ^& "exit_type" ^& q ^& ":" ^& q ^& "Abnormal" ^& q, q ^& "exit_type" ^& q ^& ":" ^& q ^& "Normal" ^& q^)
+echo content = Replace^(content, q ^& "exit_type" ^& q ^& ": " ^& q ^& "Abnormal" ^& q, q ^& "exit_type" ^& q ^& ": " ^& q ^& "Normal" ^& q^)
+echo Set ts = fso.OpenTextFile^(prefsPath, 2, False^)
+echo ts.Write content
+echo ts.Close
+echo If Err.Number ^<^> 0 Then
+echo   badName = prefsPath ^& ".bad." ^& Replace^(Replace^(Replace^(CStr^(Now^), ":", ""^), "/", ""^), " ", ""^)
+echo   fso.MoveFile prefsPath, badName
+echo   WScript.Quit 1
+echo End If
+echo WScript.Quit 0
+) > "%playr_patch_vbs%"
 exit /b 0
 
 :RESTART_BROWSERS_IF_NEEDED

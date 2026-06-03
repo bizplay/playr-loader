@@ -17,6 +17,7 @@
 setlocal EnableExtensions EnableDelayedExpansion
 
 :: Restart this script minimized (ref: https://stackoverflow.com/a/22357573/414376)
+::
 if not DEFINED IS_MINIMIZED (
   set "IS_MINIMIZED=1"
   start "" /min "%~dpnx0" %* 
@@ -24,6 +25,7 @@ if not DEFINED IS_MINIMIZED (
 )
  
 :: Log file for troubleshooting startup issues on signage players
+::
 set "playr_log=%TEMP%\playr_startup.log"
 :: Rotate log when it grows beyond 1 MB
 if exist "%playr_log%" (
@@ -106,59 +108,26 @@ echo %date% %time% Device ID: %device_id%>> "%playr_log%"
 set "gpu_options="
 set "persistency_options="
 :: --disable-session-crashed-bubble has been deprecated since v57 at the latest
-set "no_nagging_options=--disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --disable-first-run-ui --no-default-browser-check --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-search-engine-choice-screen"
+set "no_nagging_options=--disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --disable-first-run-ui --no-default-browser-check --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-search-engine-choice-screen --hide-crash-restore-bubble"
 
-:: Prevent the
-:: "Google Chrome didn't shut down correctly"
-:: warning when restarting after a crash of Windows, power outage or
-:: other non standard way to end Windows.
-:: Note: %LOCALAPPDATA% is equal to %USERPROFILE%\AppData\Local
-:: Choose one of the following options. The first only deletes one file
-:: the second option deletes all browser data such as cached videos. The
-:: second option should only be used on devices that have little disk space
-:: to implement the second option replace the three lines inside the following
-:: if clause with this
-:: del "%LOCALAPPDATA%\Google\Chrome\User Data\Default\" /S /Q
-if exist "%LOCALAPPDATA%\Google\Chrome\User Data\Default" (
-  if exist "%LOCALAPPDATA%\Google\Chrome\User Data\Default\Preferences" (
-    del "%LOCALAPPDATA%\Google\Chrome\User Data\Default\Preferences" /Q
-  )
-)
-if exist "%LOCALAPPDATA%\Google\Chrome\User Data\" (
-  if exist "%LOCALAPPDATA%\Google\Chrome\User Data\SingletonLock" (
-    del "%LOCALAPPDATA%\Google\Chrome\User Data\SingletonLock" /Q
-  )
-)
-:: when using Chromium use one of the two options, see above
-:: del "%LOCALAPPDATA%\Chromium\User Data\Default\" /S /Q
-if exist "%LOCALAPPDATA%\Chromium\User Data\Default" (
-  if exist "%LOCALAPPDATA%\Chromium\User Data\Default\Preferences" (
-    del "%LOCALAPPDATA%\Chromium\User Data\Default\Preferences" /Q
-  )
-)
-if exist "%LOCALAPPDATA%\Chromium\User Data\" (
-  if exist "%LOCALAPPDATA%\Chromium\User Data\SingletonLock" (
-    del "%LOCALAPPDATA%\Chromium\User Data\SingletonLock" /Q
-  )
-)
-:: when using Microsoft Edge use one of the two options, see above
-:: del "%LOCALAPPDATA%\Chromium\User Data\Default\" /S /Q
-if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\Default" (
-  if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\Preferences" (
-    del "%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\Preferences" /Q
-  )
-)
-if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\" (
-  if exist "%LOCALAPPDATA%\Microsoft\Edge\User Data\SingletonLock" (
-    del "%LOCALAPPDATA%\Microsoft\Edge\User Data\SingletonLock" /Q
-  )
-)
-
-:: The code below should work as is and should not require any changes
+:: Dedicated Playr browser profile - avoids touching the user's normal Chrome/Edge profile.
+:: Preventing the "didn't shut down correctly" warning without deleting Preferences, if patching that file is possible.
 ::
-set "replace=%%20"
-set "playr_loader_file_normalized=%playr_loader_file: =!replace!%"
+set "playr_profile_dir=%LOCALAPPDATA%\PlayrBrowserProfile"
+if not exist "%playr_profile_dir%" mkdir "%playr_profile_dir%"
+:: Remove only volatile lock files from the dedicated profile.
+:: for %%F in ("%playr_profile_dir%\SingletonLock" "%playr_profile_dir%\SingletonCookie" "%playr_profile_dir%\SingletonSocket") do (
+for %%F in ("%playr_profile_dir%\SingletonLock") do (
+  if exist %%~F del %%~F /Q >nul 2>nul
+)
+:: If the dedicated profile has a Preferences file, mark it as cleanly exited or 
+:: delete it if patching the content of the file is impossible.
+:: Since playback might not work if the Preferences file indicates that the browser 
+:: crashed, it is worth taking the risk of deleting it in the exceptional 
+:: case that patching it is not possible.
+call :PATCH_PLAYR_PROFILE_PREFERENCES
 
+:: Find the browser executable that can be started to show the digital signage content from playr.biz
 :: the code below should work after a 'normal' installation of either Google Chrome or Chromium
 ::
 :: if all else fails, use Internet Explorer
@@ -199,6 +168,7 @@ if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
 )
 
 :: Pre-flight: browser executable must exist
+::
 if not exist "%browser_executable%" (
   where "%browser_executable%" >nul 2>nul
   if errorlevel 1 (
@@ -213,7 +183,11 @@ if errorlevel 1 (
   echo %date% %time% WARNING: Non-Chromium browser selected; kiosk flags may not work>> "%playr_log%"
 )
 echo %date% %time% Browser: %browser_executable%>> "%playr_log%"
+echo %date% %time% Profile: %playr_profile_dir%>> "%playr_log%"
 echo %date% %time% Channel: %channel%>> "%playr_log%"
+
+set "replace=%%20"
+set "playr_loader_file_normalized=%playr_loader_file: =!replace!%"
 set "app_url=file:///%playr_loader_file_normalized%?channel=%channel%&watchdog_id=%device_id%"
 echo %date% %time% URL: !app_url!>> "%playr_log%"
 for %%E in ("%browser_executable%") do set "browser_process_name=%%~nxE"
@@ -223,7 +197,9 @@ echo %date% %time% Browser process: %browser_process_name%>> "%playr_log%"
 ::
 rundll32 user32.dll,SetCursorPos
 
-call :LaunchPlayrBrowser
+:: Launch the full screen browser
+::
+call :LAUNCH_PLAYR_BROWSER
 
 :: Watchdog: remote reboot command (curl) and local browser restart loop
 ::
@@ -274,31 +250,109 @@ if defined response (
 )
 if "%reboot_command%"=="%watchdog_response%" (
   echo %date% %time% Reboot command received from server>> "%playr_log%"
-  echo Rebooting the device in 60 seconds...
-  shutdown /r /t 60
+  echo Rebooting the device in 30 seconds...
+  shutdown /r /t 30
   exit /b 0
 )
-call :RestartBrowserIfNeeded
+call :RESTART_BROWSER_IF_NEEDED
 echo %date% %time% Continuing watchdog (last server response: %watchdog_response%)>> "%playr_log%"
 timeout /nobreak /t %watchdog_interval_in_sec%
 goto WATCHDOG_LOOP
 
 :BROWSER_WATCHDOG_LOOP
-call :RestartBrowserIfNeeded
+call :RESTART_BROWSER_IF_NEEDED
 timeout /nobreak /t %watchdog_interval_in_sec%
 goto BROWSER_WATCHDOG_LOOP
 
 goto :eof
 
-:LaunchPlayrBrowser
+:PATCH_PLAYR_PROFILE_PREFERENCES
+set "PLAYR_PROFILE=%playr_profile_dir%"
+set "powershell_exe="
+if exist "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" (
+  set "powershell_exe=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+)
+if not defined powershell_exe if exist "%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe" (
+  set "powershell_exe=%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe"
+)
+if not defined powershell_exe (
+  for /f "delims=" %%P in ('where powershell 2^>nul') do (
+    if not defined powershell_exe set "powershell_exe=%%P"
+  )
+)
+if defined powershell_exe (
+  echo %date% %time% Patching profile Preferences via PowerShell>> "%playr_log%"
+  "%powershell_exe%" -NoProfile -ExecutionPolicy Bypass -Command "$profileDir=$env:PLAYR_PROFILE; $p=Join-Path $profileDir 'Default\Preferences'; if(Test-Path $p){ try { $j=Get-Content -Raw $p | ConvertFrom-Json; if($null -eq $j.profile){ $j | Add-Member -MemberType NoteProperty -Name profile -Value ([pscustomobject]@{}) }; if($j.profile.PSObject.Properties.Name -contains 'exit_type'){ $j.profile.exit_type='Normal' } else { $j.profile | Add-Member -MemberType NoteProperty -Name exit_type -Value 'Normal' }; if($j.profile.PSObject.Properties.Name -contains 'exited_cleanly'){ $j.profile.exited_cleanly=$true } else { $j.profile | Add-Member -MemberType NoteProperty -Name exited_cleanly -Value $true }; $j | ConvertTo-Json -Depth 100 | Set-Content -Encoding UTF8 $p } catch { Rename-Item $p ($p + '.bad.' + (Get-Date -Format 'yyyyMMddHHmmss')) -Force } }" >nul 2>nul
+  exit /b 0
+)
+set "cscript_exe="
+if exist "%SystemRoot%\System32\cscript.exe" set "cscript_exe=%SystemRoot%\System32\cscript.exe"
+if not defined cscript_exe (
+  for /f "delims=" %%C in ('where cscript 2^>nul') do (
+    if not defined cscript_exe set "cscript_exe=%%C"
+  )
+)
+if defined cscript_exe (
+  echo %date% %time% PowerShell not found; patching Preferences via cscript>> "%playr_log%"
+  call :WRITE_PLAYR_PATCH_PREFERENCES
+  "%cscript_exe%" //nologo "%TEMP%\playr_patch_preferences.vbs" "%playr_profile_dir%" >nul 2>nul
+  exit /b 0
+)
+echo %date% %time% WARNING: PowerShell and cscript unavailable; deleting Preferences file>> "%playr_log%"
+if exist "%playr_profile_dir%\Default" (
+  if exist "%playr_profile_dir%\Default\Preferences" (
+    del "%playr_profile_dir%\Default\Preferences" /Q
+  )
+)
+exit /b 0
+
+:WRITE_PLAYR_PATCH_PREFERENCES
+set "playr_patch_vbs=%TEMP%\playr_patch_preferences.vbs"
+if exist "%playr_patch_vbs%" del "%playr_patch_vbs%" /Q >nul 2>nul
+(
+echo Option Explicit
+echo Dim profileDir, prefsPath, fso, ts, content, badName, q
+echo profileDir = WScript.Arguments^(0^)
+echo prefsPath = profileDir ^& "\Default\Preferences"
+echo Set fso = CreateObject^("Scripting.FileSystemObject"^)
+echo If Not fso.FileExists^(prefsPath^) Then WScript.Quit 0
+echo On Error Resume Next
+echo Set ts = fso.OpenTextFile^(prefsPath, 1, False^)
+echo content = ts.ReadAll
+echo ts.Close
+echo If Err.Number ^<^> 0 Then
+echo   badName = prefsPath ^& ".bad." ^& Replace^(Replace^(Replace^(CStr^(Now^), ":", ""^), "/", ""^), " ", ""^)
+echo   fso.MoveFile prefsPath, badName
+echo   WScript.Quit 1
+echo End If
+echo q = Chr^(34^)
+echo content = Replace^(content, q ^& "exited_cleanly" ^& q ^& ":false", q ^& "exited_cleanly" ^& q ^& ":true"^)
+echo content = Replace^(content, q ^& "exited_cleanly" ^& q ^& ": false", q ^& "exited_cleanly" ^& q ^& ": true"^)
+echo content = Replace^(content, q ^& "exit_type" ^& q ^& ":" ^& q ^& "Crashed" ^& q, q ^& "exit_type" ^& q ^& ":" ^& q ^& "Normal" ^& q^)
+echo content = Replace^(content, q ^& "exit_type" ^& q ^& ": " ^& q ^& "Crashed" ^& q, q ^& "exit_type" ^& q ^& ": " ^& q ^& "Normal" ^& q^)
+echo content = Replace^(content, q ^& "exit_type" ^& q ^& ":" ^& q ^& "Abnormal" ^& q, q ^& "exit_type" ^& q ^& ":" ^& q ^& "Normal" ^& q^)
+echo content = Replace^(content, q ^& "exit_type" ^& q ^& ": " ^& q ^& "Abnormal" ^& q, q ^& "exit_type" ^& q ^& ": " ^& q ^& "Normal" ^& q^)
+echo Set ts = fso.OpenTextFile^(prefsPath, 2, False^)
+echo ts.Write content
+echo ts.Close
+echo If Err.Number ^<^> 0 Then
+echo   badName = prefsPath ^& ".bad." ^& Replace^(Replace^(Replace^(CStr^(Now^), ":", ""^), "/", ""^), " ", ""^)
+echo   fso.MoveFile prefsPath, badName
+echo   WScript.Quit 1
+echo End If
+echo WScript.Quit 0
+) > "%playr_patch_vbs%"
+exit /b 0
+
+:LAUNCH_PLAYR_BROWSER
 echo %date% %time% Launching browser>> "%playr_log%"
-start "" "%browser_executable%" %gpu_options% %persistency_options% %no_nagging_options% --kiosk --app="!app_url!"
+start "" "%browser_executable%" %gpu_options% %persistency_options% %no_nagging_options% --user-data-dir="%playr_profile_dir%" --start-fullscreen --kiosk --app="!app_url!"
 echo %date% %time% Browser launch requested>> "%playr_log%"
 exit /b 0
 
-:RestartBrowserIfNeeded
+:RESTART_BROWSER_IF_NEEDED
 tasklist /FI "IMAGENAME eq %browser_process_name%" 2>nul | find /I "%browser_process_name%" >nul
 if not errorlevel 1 exit /b 0
 echo %date% %time% WARNING: %browser_process_name% not running; restarting browser>> "%playr_log%"
-call :LaunchPlayrBrowser
+call :LAUNCH_PLAYR_BROWSER
 exit /b 0
