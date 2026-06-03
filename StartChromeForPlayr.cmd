@@ -216,46 +216,49 @@ echo %date% %time% Browser: %browser_executable%>> "%playr_log%"
 echo %date% %time% Channel: %channel%>> "%playr_log%"
 set "app_url=file:///%playr_loader_file_normalized%?channel=%channel%&watchdog_id=%device_id%"
 echo %date% %time% URL: !app_url!>> "%playr_log%"
+for %%E in ("%browser_executable%") do set "browser_process_name=%%~nxE"
+echo %date% %time% Browser process: %browser_process_name%>> "%playr_log%"
 
 :: set mouse pointer to left bottom corner in case css 'mouse: none' does not work
 ::
 rundll32 user32.dll,SetCursorPos
 
-:: Start browser in kiosk/app mode using the URL built above.
-:: Do not use start /min or cmd /c; Chrome may stay minimized otherwise.
-::
-echo %date% %time% Launching browser>> "%playr_log%"
-start "" "%browser_executable%" %gpu_options% %persistency_options% %no_nagging_options% --kiosk --app="!app_url!"
-echo %date% %time% Browser launch requested>> "%playr_log%"
+call :LaunchPlayrBrowser
 
-:: Watchdog
+:: Watchdog: remote reboot command (curl) and local browser restart loop
 ::
-:: The watchdog checks for a reboot command on the server and reboots the
-:: device if it receives that command
-:: TODO; check if browser is still running and kill and restart it if not
-::
+set "watchdog_interval_in_sec=300"
+set "watchdog_response_file=%TEMP%\playr_watchdog_response.txt"
+set "reboot_command=1"
+set "watchdog_url=https://ajax.playr.biz/watchdogs/%device_id%/command"
+set "watchdog_remote_enabled=1"
 where curl >nul 2>nul
 if errorlevel 1 (
+  set "watchdog_remote_enabled=0"
   echo %date% %time% WARNING: curl not found; remote reboot watchdog disabled>> "%playr_log%"
-  echo WARNING: curl not found. Watchdog disabled. See %playr_log%
-  exit /b 0
+  echo WARNING: curl not found. Remote reboot disabled; browser restart loop active. See %playr_log%
+) else (
+  echo %date% %time% Watchdog: remote poll every %watchdog_interval_in_sec%s>> "%playr_log%"
 )
-set "watchdog_command=curl -k "https://ajax.playr.biz/watchdogs/%device_id%/command" -o - -s"
-:: interval for checking the server; 5 minutes
-set "watchdog_interval_in_sec=300"
-echo %date% %time% Watchdog: polling every %watchdog_interval_in_sec%s>> "%playr_log%"
-set "reboot_command=1"
-:: set default response in case the server does not respond (4xx/5xx status code)
-set "response=2"
+echo %date% %time% Watchdog: browser check every %watchdog_interval_in_sec%s>> "%playr_log%"
 :: first wait for the player to start properly
 timeout /nobreak /t %watchdog_interval_in_sec%
 
+if "%watchdog_remote_enabled%"=="0" goto BROWSER_WATCHDOG_LOOP
+
 :WATCHDOG_LOOP
-:: get command from the server
-for /f %%d in ('%watchdog_command%') do ( set "response=%%d" )
+:: default when the server does not respond or curl fails
+set "response=2"
+if exist "%watchdog_response_file%" del "%watchdog_response_file%" /Q >nul 2>nul
+curl -k "%watchdog_url%" -o "%watchdog_response_file%" -s
+if errorlevel 1 (
+  echo %date% %time% WARNING: curl failed, errorlevel %errorlevel%>> "%playr_log%"
+) else if exist "%watchdog_response_file%" (
+  for /f "usebackq delims=" %%d in ("%watchdog_response_file%") do set "response=%%d"
+) else (
+  echo %date% %time% WARNING: curl returned no response file>> "%playr_log%"
+)
 :: remove html/json tag/structure non-word characters
-:: to make the following full proof, response should be checked to be
-:: defined after each replacement
 set "response=%response:<=%"
 set "response=%response:>=%"
 set "response=%response:!=%"
@@ -269,16 +272,33 @@ if defined response (
 ) else (
   set "watchdog_response=2"
 )
-if "%reboot_command%" == "%watchdog_response%" (
+if "%reboot_command%"=="%watchdog_response%" (
   echo %date% %time% Reboot command received from server>> "%playr_log%"
-  echo Rebooting the device...
-  shutdown -r
+  echo Rebooting the device in 60 seconds...
+  shutdown /r /t 60
   exit /b 0
-) else (
-  echo Continueing to check for watchdog command...
-  timeout /nobreak /t %watchdog_interval_in_sec%
-  goto WATCHDOG_LOOP
 )
-set "exit_code=%errorlevel%"
-echo %date% %time% Exit code: %exit_code%>> "%playr_log%"
-exit /b %exit_code%
+call :RestartBrowserIfNeeded
+echo %date% %time% Continuing watchdog (last server response: %watchdog_response%)>> "%playr_log%"
+timeout /nobreak /t %watchdog_interval_in_sec%
+goto WATCHDOG_LOOP
+
+:BROWSER_WATCHDOG_LOOP
+call :RestartBrowserIfNeeded
+timeout /nobreak /t %watchdog_interval_in_sec%
+goto BROWSER_WATCHDOG_LOOP
+
+goto :eof
+
+:LaunchPlayrBrowser
+echo %date% %time% Launching browser>> "%playr_log%"
+start "" "%browser_executable%" %gpu_options% %persistency_options% %no_nagging_options% --kiosk --app="!app_url!"
+echo %date% %time% Browser launch requested>> "%playr_log%"
+exit /b 0
+
+:RestartBrowserIfNeeded
+tasklist /FI "IMAGENAME eq %browser_process_name%" 2>nul | find /I "%browser_process_name%" >nul
+if not errorlevel 1 exit /b 0
+echo %date% %time% WARNING: %browser_process_name% not running; restarting browser>> "%playr_log%"
+call :LaunchPlayrBrowser
+exit /b 0

@@ -272,48 +272,49 @@ set "app_url3=file:///%playr_loader_file_normalized%?channel=%channel3%"
 echo %date% %time% URL1: !app_url1!>> "%playr_log%"
 echo %date% %time% URL2: !app_url2!>> "%playr_log%"
 echo %date% %time% URL3: !app_url3!>> "%playr_log%"
+for %%E in ("%browser_executable%") do set "browser_process_name=%%~nxE"
+echo %date% %time% Browser process: %browser_process_name% (expect 3 instances)>> "%playr_log%"
 
 :: set mouse pointer to left bottom corner in case css 'mouse: none' does not work
 ::
 rundll32 user32.dll,SetCursorPos
 
-:: Start browsers in kiosk/app mode using the URLs built above.
-:: Do not use start /min or cmd /c; Chrome may stay minimized otherwise.
-::
-echo %date% %time% Launching multi-screen browsers>> "%playr_log%"
-start "" "%browser_executable%" --profile-directory=%user1% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position1% --kiosk --app="!app_url1!"
-start "" "%browser_executable%" --profile-directory=%user2% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position2% --kiosk --app="!app_url2!"
-start "" "%browser_executable%" --profile-directory=%user3% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position3% --kiosk --app="!app_url3!"
-echo %date% %time% Browser launch requested for all screens>> "%playr_log%"
+call :LAUNCH_PLAYR_BROWSERS
 
-:: Watchdog
+:: Watchdog: remote reboot command (curl) and local browser restart loop
 ::
-:: The watchdog checks for a reboot command on the server and reboots the
-:: device if it receives that command
-:: TODO; check if browser is still running and kill and restart it if not
-::
+set "watchdog_interval_in_sec=300"
+set "watchdog_response_file=%TEMP%\playr_watchdog_response.txt"
+set "reboot_command=1"
+set "watchdog_url=https://ajax.playr.biz/watchdogs/%device_id%/command"
+set "watchdog_remote_enabled=1"
 where curl >nul 2>nul
 if errorlevel 1 (
+  set "watchdog_remote_enabled=0"
   echo %date% %time% WARNING: curl not found; remote reboot watchdog disabled>> "%playr_log%"
-  echo WARNING: curl not found. Watchdog disabled. See %playr_log%
-  exit /b 0
+  echo WARNING: curl not found. Remote reboot disabled; browser restart loop active. See %playr_log%
+) else (
+  echo %date% %time% Watchdog: remote poll every %watchdog_interval_in_sec%s>> "%playr_log%"
 )
-set "watchdog_command=curl -k "https://ajax.playr.biz/watchdogs/%device_id%/command" -o - -s"
-:: interval for checking the server; 5 minutes
-set "watchdog_interval_in_sec=300"
-echo %date% %time% Watchdog: polling every %watchdog_interval_in_sec%s>> "%playr_log%"
-set "reboot_command=1"
-:: set default response in case the server does not respond (4xx/5xx status code)
-set "response=2"
+echo %date% %time% Watchdog: browser check every %watchdog_interval_in_sec%s>> "%playr_log%"
 :: first wait for the player to start properly
 timeout /nobreak /t %watchdog_interval_in_sec%
 
+if "%watchdog_remote_enabled%"=="0" goto BROWSER_WATCHDOG_LOOP
+
 :WATCHDOG_LOOP
-:: get command from the server
-for /f %%d in ('%watchdog_command%') do ( set "response=%%d" )
+:: default when the server does not respond or curl fails
+set "response=2"
+if exist "%watchdog_response_file%" del "%watchdog_response_file%" /Q >nul 2>nul
+curl -k "%watchdog_url%" -o "%watchdog_response_file%" -s
+if errorlevel 1 (
+  echo %date% %time% WARNING: curl failed, errorlevel %errorlevel%>> "%playr_log%"
+) else if exist "%watchdog_response_file%" (
+  for /f "usebackq delims=" %%d in ("%watchdog_response_file%") do set "response=%%d"
+) else (
+  echo %date% %time% WARNING: curl returned no response file>> "%playr_log%"
+)
 :: remove html/json tag/structure non-word characters
-:: to make the following full proof, response should be checked to be
-:: defined after each replacement
 set "response=%response:<=%"
 set "response=%response:>=%"
 set "response=%response:!=%"
@@ -327,16 +328,36 @@ if defined response (
 ) else (
   set "watchdog_response=2"
 )
-if "%reboot_command%" == "%watchdog_response%" (
+if "%reboot_command%"=="%watchdog_response%" (
   echo %date% %time% Reboot command received from server>> "%playr_log%"
-  echo Rebooting the device...
-  shutdown -r
+  echo Rebooting the device in 30 seconds...
+  shutdown /r /t 30
   exit /b 0
-) else (
-  echo Continueing to check for watchdog command...
-  timeout /nobreak /t %watchdog_interval_in_sec%
-  goto WATCHDOG_LOOP
 )
-set "exit_code=%errorlevel%"
-echo %date% %time% Exit code: %exit_code%>> "%playr_log%"
-exit /b %exit_code%
+call :RESTART_BROWSERS_IF_NEEDED
+echo %date% %time% Continuing watchdog (last server response: %watchdog_response%)>> "%playr_log%"
+timeout /nobreak /t %watchdog_interval_in_sec%
+goto WATCHDOG_LOOP
+
+:BROWSER_WATCHDOG_LOOP
+call :RESTART_BROWSERS_IF_NEEDED
+timeout /nobreak /t %watchdog_interval_in_sec%
+goto BROWSER_WATCHDOG_LOOP
+
+goto :eof
+
+:LAUNCH_PLAYR_BROWSERS
+echo %date% %time% Launching multi-screen browsers>> "%playr_log%"
+start "" "%browser_executable%" --profile-directory=%user1% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position1% --kiosk --app="!app_url1!"
+start "" "%browser_executable%" --profile-directory=%user2% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position2% --kiosk --app="!app_url2!"
+start "" "%browser_executable%" --profile-directory=%user3% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position3% --kiosk --app="!app_url3!"
+echo %date% %time% Browser launch requested for all screens>> "%playr_log%"
+exit /b 0
+
+:RESTART_BROWSERS_IF_NEEDED
+set "browser_instance_count=0"
+for /f %%a in ('tasklist /FI "IMAGENAME eq %browser_process_name%" /NH 2^>nul ^| find /c /I "%browser_process_name%"') do set "browser_instance_count=%%a"
+if !browser_instance_count! geq 3 exit /b 0
+echo %date% %time% WARNING: expected 3 %browser_process_name% instances, found !browser_instance_count!; restarting all screens>> "%playr_log%"
+call :LAUNCH_PLAYR_BROWSERS
+exit /b 0
