@@ -18,31 +18,51 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
   :: FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
   :: OTHER DEALINGS IN THE SOFTWARE.
 
-  :: make sure that the path to the playr_loader.html file is correct in your situation
+  :: Log file for troubleshooting startup issues on signage players
+  set "playr_log=%TEMP%\playr_startup.log"
+  :: Rotate log when it grows beyond 1 MB
+  if exist "%playr_log%" (
+    for %%F in ("%playr_log%") do if %%~zF geq 1048576 del "%playr_log%"
+  )
+  echo.>> "%playr_log%"
+  echo %date% %time% ===== StartChromeOnMultipleScreens =====>> "%playr_log%"
+  echo %date% %time% Script: %~f0>> "%playr_log%"
+
+  :: Locate playr_loader.html on the local Desktop or the OneDrive Desktop
   :: %USERPROFILE% points to your personal profile directory, that usually can be found
   :: at C:\Users\<your user name>
   ::
-  if exist "%USERPROFILE%\Desktop" (
-    :: local only Desktop
-    set playr_loader_file=%USERPROFILE%\Desktop\playr_loader.html
+  set "playr_loader_desktop=%USERPROFILE%\Desktop\playr_loader.html"
+  set "playr_loader_onedrive=%USERPROFILE%\OneDrive\Desktop\playr_loader.html"
+  if exist "%playr_loader_desktop%" (
+    set "playr_loader_file=%playr_loader_desktop%"
+  ) else if exist "%playr_loader_onedrive%" (
+    set "playr_loader_file=%playr_loader_onedrive%"
   ) else (
-    :: Desktop on OneDrive
-    set playr_loader_file=%USERPROFILE%\OneDrive\Desktop\playr_loader.html
+    echo %date% %time% ERROR: playr_loader.html not found at:>> "%playr_log%"
+    echo %date% %time%   %playr_loader_desktop%>> "%playr_log%"
+    echo %date% %time%   %playr_loader_onedrive%>> "%playr_log%"
+    echo ERROR: playr_loader.html not found at:
+    echo   %playr_loader_desktop%
+    echo   %playr_loader_onedrive%
+    timeout /t 30 >nul
+    exit /b 1
   )
+  echo %date% %time% Loader: %playr_loader_file%>> "%playr_log%"
 
   :: use the url below if you want be able to set the channel to play on your dashboard.
   :: Note: using this setting requires a one time registration of the playback device
   :: using the dashboard (under Settings/Players)
   ::
-  set channel1=http://play.playr.biz
-  set channel2=http://play.playr.biz
-  set channel3=http://play.playr.biz
+  set "channel1=http://play.playr.biz"
+  set "channel2=http://play.playr.biz"
+  set "channel3=http://play.playr.biz"
 
   :: use three different user profiles to enable starting/running three instances
   :: of the Chrome browser at the same time
-  set user1=Screen1
-  set user2=Screen2
-  set user3=Screen3
+  set "user1=Screen1"
+  set "user2=Screen2"
+  set "user3=Screen3"
 
   :: change and use the url below if you want to play a specific channel that cannot be
   :: changed from your dashboard
@@ -55,39 +75,42 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
 
   :: Determine unique device ID
   ::
-  for /f "tokens=3" %%a in ('REG QUERY HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography /v MachineGuid ^| findstr /ri "REG_SZ"') do ( set device_id=%%a )
+  set "device_id="
+  for /f "tokens=3" %%a in ('REG QUERY HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography /v MachineGuid ^| findstr /ri "REG_SZ"') do ( set "device_id=%%a" )
   :: Plan b
   if not defined device_id (
   :: this works since the value we need is in the last line of the output of the command
-    for /f "tokens=* USEBACKQ" %%b in ('wmic csproduct get UUID') do ( set device_id=%%b )
+    for /f "tokens=* USEBACKQ" %%b in ('wmic csproduct get UUID') do ( set "device_id=%%b" )
   )
   if not defined device_id (
-    set defined=false
+    set "defined=false"
   ) else (
-    set device_id=%device_id:~0,36%
-    set defined=true
+    set "device_id=%device_id:~0,36%"
+    set "defined=true"
   )
   :: wnmic default
-  if "%device_id%" == "00000000-0000-0000-0000-000000000000" ( set defined=false )
+  if "%device_id%" == "00000000-0000-0000-0000-000000000000" ( set "defined=false" )
+  if /i "%device_id:~0,4%" == "wmic" ( set "defined=false" )
   :: registry default
-  if "%device_id%" == "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF" ( set defined=false )
+  if "%device_id%" == "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF" ( set "defined=false" )
   :: hardware default
-  if "%device_id%" == "00020003-0004-0005-0006-000700080009" ( set defined=false )
+  if "%device_id%" == "00020003-0004-0005-0006-000700080009" ( set "defined=false" )
   if "%defined%" == "true" ( goto DEVICE_ID_DEFINED )
 
   :: if a default id was found use the industry standard default and add the mac address to make it unique
-  for /f "tokens=1" %%c in ('getmac ^| findstr /ri "device"') do ( set mac=%%c )
-  set mac_address=%mac:-=:%
-  set device_id="00020003-0004-0005-0006-000700080009;%mac_address:~0,17%"
+  for /f "tokens=1" %%c in ('getmac ^| findstr /ri "device"') do ( set "mac=%%c" )
+  set "mac_address=%mac:-=:%"
+  set "device_id=00020003-0004-0005-0006-000700080009;%mac_address:~0,17%"
 
   :DEVICE_ID_DEFINED
+  echo %date% %time% Device ID: %device_id%>> "%playr_log%"
 
   :: Define the command line options for starting browser
   :: set gpu_options="--ignore-gpu-blocklist --enable-experimental-canvas-features --enable-gpu-rasterization --enable-threaded-gpu-rasterization"
-  set gpu_options=
-  set persistency_options=
+  set "gpu_options="
+  set "persistency_options="
     :: --disable-session-crashed-bubble has been deprecated since v57 at the latest
-  set no_nagging_options=--disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --disable-first-run-ui --no-default-browser-check --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-search-engine-choice-screen
+  set "no_nagging_options=--disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --disable-first-run-ui --no-default-browser-check --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-search-engine-choice-screen"
 
   :: Prevent the
   :: "Google Chrome didn't shut down correctly"
@@ -184,42 +207,66 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
   ::
   :: in case Chrome or Chromium cannot be found => default to Microsoft Edge
   :: as up to date versions of that are also Blink (Chromium/Chrome redering engine) based
+  set "browser_executable=iexplore.exe"
   if exist "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" (
-    set browser_executable="%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
+    set "browser_executable=%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
   )
   if exist "%LOCALAPPDATA%\Chromium\Application\chrome.exe" (
-    set browser_executable="%LOCALAPPDATA%\Chromium\Application\chrome.exe"
+    set "browser_executable=%LOCALAPPDATA%\Chromium\Application\chrome.exe"
   )
   if exist "%ProgramFiles(x86)%\Chromium\chrome.exe" (
-    set browser_executable="%ProgramFiles(x86)%\Chromium\chrome.exe"
+    set "browser_executable=%ProgramFiles(x86)%\Chromium\chrome.exe"
   )
   if exist "%ProgramFiles%\Chromium\chrome.exe" (
-    set browser_executable="%ProgramFiles%\Chromium\chrome.exe"
+    set "browser_executable=%ProgramFiles%\Chromium\chrome.exe"
   )
   if exist "%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe" (
-    set browser_executable="%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"
+    set "browser_executable=%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"
   )
   if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
-    set browser_executable="%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
+    set "browser_executable=%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
   )
   if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
-    set browser_executable="%ProgramFiles%\Google\Chrome\Application\chrome.exe"
+    set "browser_executable=%ProgramFiles%\Google\Chrome\Application\chrome.exe"
   )
+
+  :: Pre-flight: browser executable must exist
+  if not exist "%browser_executable%" (
+    where "%browser_executable%" >nul 2>nul
+    if errorlevel 1 (
+      echo %date% %time% ERROR: Browser not found: %browser_executable%>> "%playr_log%"
+      echo ERROR: Browser not found: %browser_executable%
+      timeout /t 30 >nul
+      exit /b 1
+    )
+  )
+  echo %browser_executable% | findstr /i /c:"chrome.exe" /c:"msedge.exe" /c:"chromium" >nul
+  if errorlevel 1 (
+    echo %date% %time% WARNING: Non-Chromium browser selected; kiosk flags may not work>> "%playr_log%"
+  )
+  echo %date% %time% Browser: %browser_executable%>> "%playr_log%"
+  echo %date% %time% Channels: %channel1% | %channel2% | %channel3%>> "%playr_log%"
 
 
 
   :: The window positions specified below will work when you use three 1080p screens (1920x1080)
   :: If you use screens with a different resolution you may need to change the values below.
   ::
-  screen_position1=50,20
-  screen_position2=2000,20
-  screen_position3=4000,20
+  set "screen_position1=50,20"
+  set "screen_position2=2000,20"
+  set "screen_position3=4000,20"
 
   :: The code below should work as is and should not require any changes
   ::
   setlocal enabledelayedexpansion
-  set replace=%%20
-  set playr_loader_file_normalized=%playr_loader_file: =!replace!%
+  set "replace=%%20"
+  set "playr_loader_file_normalized=%playr_loader_file: =!replace!%"
+  set "app_url1=file:///%playr_loader_file_normalized%?channel=%channel1%"
+  set "app_url2=file:///%playr_loader_file_normalized%?channel=%channel2%"
+  set "app_url3=file:///%playr_loader_file_normalized%?channel=%channel3%"
+  echo %date% %time% URL1: !app_url1!>> "%playr_log%"
+  echo %date% %time% URL2: !app_url2!>> "%playr_log%"
+  echo %date% %time% URL3: !app_url3!>> "%playr_log%"
 
   :: set mouse pointer to left bottom corner in case css 'mouse: none' does not work
   ::
@@ -227,9 +274,11 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
 
   :: start browser from a minimized cmd.exe using the options that were set up above
   ::
+  echo %date% %time% Launching multi-screen browsers>> "%playr_log%"
   start /min cmd /c "%browser_executable% --profile-directory=%user1% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position1% --kiosk file:///%playr_loader_file_normalized%?channel=%channel1%"
   start /min cmd /c "%browser_executable% --profile-directory=%user2% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position2% --kiosk file:///%playr_loader_file_normalized%?channel=%channel2%"
   start /min cmd /c "%browser_executable% --profile-directory=%user3% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position3% --kiosk file:///%playr_loader_file_normalized%?channel=%channel3%"
+  echo %date% %time% Browser launch requested for all screens>> "%playr_log%"
 
   :: Watchdog
   ::
@@ -237,35 +286,43 @@ if not DEFINED IS_MINIMIZED set IS_MINIMIZED=1 && start "" /min "%~dpnx0" %* && 
   :: device if it receives that command
   :: TODO; check if browser is still running and kill and restart it if not
   ::
-  set watchdog_command=curl -k "https://ajax.playr.biz/watchdogs/%device_id%/command" -o - -s
+  where curl >nul 2>nul
+  if errorlevel 1 (
+    echo %date% %time% WARNING: curl not found; remote reboot watchdog disabled>> "%playr_log%"
+    echo WARNING: curl not found. Watchdog disabled. See %playr_log%
+    exit /b 0
+  )
+  set "watchdog_command=curl -k "https://ajax.playr.biz/watchdogs/%device_id%/command" -o - -s"
   :: interval for checking the server; 5 minutes
-  set watchdog_interval_in_sec=300
-  set reboot_command=1
+  set "watchdog_interval_in_sec=300"
+  echo %date% %time% Watchdog: polling every %watchdog_interval_in_sec%s>> "%playr_log%"
+  set "reboot_command=1"
   :: set default response in case the server does not respond (4xx/5xx status code)
-  set response=2
+  set "response=2"
   :: first wait for the player to start properly
   timeout /nobreak /t %watchdog_interval_in_sec%
 
   :WATCHDOG_LOOP
   :: get command from the server
-  for /f %%d in ('%watchdog_command%') do ( set response=%%d )
+  for /f %%d in ('%watchdog_command%') do ( set "response=%%d" )
   :: remove html/json tag/structure non-word characters
   :: to make the following full proof, response should be checked to be
   :: defined after each replacement
-  set response=%response:<=%
-  set response=%response:>=%
-  set response=%response:!=%
-  set response=%response:/=%
-  set response=%response:[=%
-  set response=%response:]=%
-  set response=%response:{=%
-  set response=%response:}=%
+  set "response=%response:<=%"
+  set "response=%response:>=%"
+  set "response=%response:!=%"
+  set "response=%response:/=%"
+  set "response=%response:[=%"
+  set "response=%response:]=%"
+  set "response=%response:{=%"
+  set "response=%response:}=%"
   if defined response (
-    set watchdog_response=%response:~0,1%
+    set "watchdog_response=%response:~0,1%"
   ) else (
-    set watchdog_response=2
+    set "watchdog_response=2"
   )
   if "%reboot_command%" == "%watchdog_response%" (
+    echo %date% %time% Reboot command received from server>> "%playr_log%"
     echo Rebooting the device...
     shutdown -r
     exit /b 0
