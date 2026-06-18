@@ -140,14 +140,22 @@ call :PATCH_PLAYR_PROFILE_PREFERENCES "%user1%"
 call :PATCH_PLAYR_PROFILE_PREFERENCES "%user2%"
 call :PATCH_PLAYR_PROFILE_PREFERENCES "%user3%"
 
-:: the code below should work after a 'normal' installation of either Google Chrome or Chromium
+:: Find browser: Chrome -> Chromium -> Edge -> Internet Explorer (legacy fallback)
 ::
-:: in case Chrome or Chromium cannot be found => default to Microsoft Edge
-:: as up to date versions of that are also Blink (Chromium/Chrome redering engine) based
-set "browser_executable=iexplore.exe"
-if exist "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" (
-  set "browser_executable=%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
+set "browser_executable="
+
+:: Prefer Chrome
+if exist "%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe" (
+  set "browser_executable=%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"
 )
+if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
+  set "browser_executable=%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
+)
+if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
+  set "browser_executable=%ProgramFiles%\Google\Chrome\Application\chrome.exe"
+)
+
+:: Then Chromium
 if exist "%LOCALAPPDATA%\Chromium\Application\chrome.exe" (
   set "browser_executable=%LOCALAPPDATA%\Chromium\Application\chrome.exe"
 )
@@ -157,14 +165,28 @@ if exist "%ProgramFiles(x86)%\Chromium\chrome.exe" (
 if exist "%ProgramFiles%\Chromium\chrome.exe" (
   set "browser_executable=%ProgramFiles%\Chromium\chrome.exe"
 )
-if exist "%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe" (
-  set "browser_executable=%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"
+
+:: Then Edge (Chromium-based on supported Windows versions)
+if exist "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" (
+  set "browser_executable=%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
 )
-if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
-  set "browser_executable=%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
+if exist "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" (
+  set "browser_executable=%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"
 )
-if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
-  set "browser_executable=%ProgramFiles%\Google\Chrome\Application\chrome.exe"
+
+:: Last resort: Internet Explorer (legacy Windows only)
+if not defined browser_executable if exist "%ProgramFiles(x86)%\Internet Explorer\iexplore.exe" (
+  set "browser_executable=%ProgramFiles(x86)%\Internet Explorer\iexplore.exe"
+)
+if not defined browser_executable if exist "%ProgramFiles%\Internet Explorer\iexplore.exe" (
+  set "browser_executable=%ProgramFiles%\Internet Explorer\iexplore.exe"
+)
+
+if not defined browser_executable (
+  echo %date% %time% ERROR: No supported browser found>> "%playr_log%"
+  echo ERROR: No supported browser found
+  timeout /t 30 >nul
+  exit /b 1
 )
 
 :: Pre-flight: browser executable must exist
@@ -177,9 +199,8 @@ if not exist "%browser_executable%" (
     exit /b 1
   )
 )
-echo %browser_executable% | findstr /i /c:"chrome.exe" /c:"msedge.exe" /c:"chromium" >nul
-if errorlevel 1 (
-  echo %date% %time% WARNING: Non-Chromium browser selected; kiosk flags may not work>> "%playr_log%"
+echo %browser_executable% | findstr /i /c:"iexplore.exe" >nul && (
+  echo %date% %time% WARNING: Using Internet Explorer fallback; kiosk flags may not work>> "%playr_log%"
 )
 echo %date% %time% Browser: %browser_executable%>> "%playr_log%"
 echo %date% %time% Profile: %playr_profile_dir% (%user1%, %user2%, %user3%)>> "%playr_log%"
