@@ -21,8 +21,6 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
-:: Restart this script minimized (ref: https://stackoverflow.com/a/22357573/414376)
-::
 if not DEFINED IS_MINIMIZED (
   set "IS_MINIMIZED=1"
   start "" /min "%~dpnx0" %* 
@@ -294,7 +292,8 @@ if not defined powershell_exe (
 if defined powershell_exe (
   echo %date% %time% Patching profile Preferences via PowerShell>> "%playr_log%"
   "%powershell_exe%" -NoProfile -ExecutionPolicy Bypass -Command "$profileDir=$env:PLAYR_PROFILE; $p=Join-Path $profileDir 'Default\Preferences'; if(Test-Path $p){ try { $j=Get-Content -Raw $p | ConvertFrom-Json; if($null -eq $j.profile){ $j | Add-Member -MemberType NoteProperty -Name profile -Value ([pscustomobject]@{}) }; if($j.profile.PSObject.Properties.Name -contains 'exit_type'){ $j.profile.exit_type='Normal' } else { $j.profile | Add-Member -MemberType NoteProperty -Name exit_type -Value 'Normal' }; if($j.profile.PSObject.Properties.Name -contains 'exited_cleanly'){ $j.profile.exited_cleanly=$true } else { $j.profile | Add-Member -MemberType NoteProperty -Name exited_cleanly -Value $true }; $j | ConvertTo-Json -Depth 100 | Set-Content -Encoding UTF8 $p } catch { Rename-Item $p ($p + '.bad.' + (Get-Date -Format 'yyyyMMddHHmmss')) -Force } }" >nul 2>nul
-  exit /b 0
+  if not errorlevel 1 exit /b 0
+  echo %date% %time% WARNING: PowerShell Preferences patch failed; trying cscript>> "%playr_log%"
 )
 set "cscript_exe="
 if exist "%SystemRoot%\System32\cscript.exe" set "cscript_exe=%SystemRoot%\System32\cscript.exe"
@@ -304,7 +303,7 @@ if not defined cscript_exe (
   )
 )
 if defined cscript_exe (
-  echo %date% %time% PowerShell not found; patching Preferences via cscript>> "%playr_log%"
+  echo %date% %time% Patching profile Preferences via cscript>> "%playr_log%"
   call :WRITE_PLAYR_PATCH_PREFERENCES
   "%cscript_exe%" //nologo "%TEMP%\playr_patch_preferences.vbs" "%playr_profile_dir%" >nul 2>nul
   exit /b 0
