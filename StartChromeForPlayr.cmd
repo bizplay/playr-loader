@@ -379,8 +379,37 @@ echo %date% %time% Browser launch requested>> "%playr_log%"
 exit /b 0
 
 :RESTART_BROWSER_IF_NEEDED
-tasklist /FI "IMAGENAME eq %browser_process_name%" 2>nul | find /I "%browser_process_name%" >nul
-if not errorlevel 1 exit /b 0
-echo %date% %time% WARNING: %browser_process_name% not running; restarting browser>> "%playr_log%"
+call :IS_PLAYR_BROWSER_RUNNING
+if "%playr_browser_running%"=="1" exit /b 0
+echo %date% %time% WARNING: Playr browser (%browser_process_name% with profile %playr_profile_dir%) not running; restarting>> "%playr_log%"
 call :LAUNCH_PLAYR_BROWSER
+exit /b 0
+
+:IS_PLAYR_BROWSER_RUNNING
+set "playr_browser_running=0"
+set "PLAYR_PROFILE_DIR=%playr_profile_dir%"
+set "BROWSER_PROCESS=%browser_process_name%"
+set "powershell_exe="
+if exist "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" (
+  set "powershell_exe=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+)
+if not defined powershell_exe if exist "%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe" (
+  set "powershell_exe=%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe"
+)
+if not defined powershell_exe (
+  for /f "delims=" %%P in ('where powershell 2^>nul') do (
+    if not defined powershell_exe set "powershell_exe=%%P"
+  )
+)
+if defined powershell_exe (
+  "%powershell_exe%" -NoProfile -Command "$p=$env:PLAYR_PROFILE_DIR; $n=$env:BROWSER_PROCESS; $f=$false; Get-WmiObject Win32_Process -Filter ('Name='''+$n+'''') -ErrorAction SilentlyContinue | ForEach-Object { if($_.CommandLine -and $_.CommandLine.Contains($p)){ $f=$true } }; if($f){exit 0}else{exit 1}" >nul 2>nul
+  if not errorlevel 1 set "playr_browser_running=1"
+  exit /b 0
+)
+wmic process where "name='%browser_process_name%'" get CommandLine 2>nul | findstr /I /C:"%playr_profile_dir%" >nul
+if not errorlevel 1 set "playr_browser_running=1"
+if "%playr_browser_running%"=="1" exit /b 0
+echo %date% %time% WARNING: Cannot inspect process command line; falling back to generic %browser_process_name% check>> "%playr_log%"
+tasklist /FI "IMAGENAME eq %browser_process_name%" 2>nul | find /I "%browser_process_name%" >nul
+if not errorlevel 1 set "playr_browser_running=1"
 exit /b 0

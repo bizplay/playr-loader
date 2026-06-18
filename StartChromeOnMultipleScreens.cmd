@@ -395,9 +395,35 @@ echo WScript.Quit 0
 exit /b 0
 
 :RESTART_BROWSERS_IF_NEEDED
-set "browser_instance_count=0"
-for /f %%a in ('tasklist /FI "IMAGENAME eq %browser_process_name%" /NH 2^>nul ^| find /c /I "%browser_process_name%"') do set "browser_instance_count=%%a"
-if !browser_instance_count! geq 3 exit /b 0
-echo %date% %time% WARNING: expected 3 %browser_process_name% instances, found !browser_instance_count!; restarting all screens>> "%playr_log%"
+call :COUNT_PLAYR_BROWSER_INSTANCES
+if !playr_browser_instance_count! geq 3 exit /b 0
+echo %date% %time% WARNING: expected 3 Playr browser instances (profile %playr_profile_dir%), found !playr_browser_instance_count!; restarting all screens>> "%playr_log%"
 call :LAUNCH_PLAYR_BROWSERS
+exit /b 0
+
+:COUNT_PLAYR_BROWSER_INSTANCES
+set "playr_browser_instance_count=0"
+set "PLAYR_PROFILE_DIR=%playr_profile_dir%"
+set "BROWSER_PROCESS=%browser_process_name%"
+set "powershell_exe="
+if exist "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" (
+  set "powershell_exe=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+)
+if not defined powershell_exe if exist "%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe" (
+  set "powershell_exe=%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe"
+)
+if not defined powershell_exe (
+  for /f "delims=" %%P in ('where powershell 2^>nul') do (
+    if not defined powershell_exe set "powershell_exe=%%P"
+  )
+)
+if defined powershell_exe (
+  for /f "usebackq delims=" %%a in (`"%powershell_exe%" -NoProfile -Command "$p=$env:PLAYR_PROFILE_DIR; $n=$env:BROWSER_PROCESS; $c=0; Get-WmiObject Win32_Process -Filter ('Name='''+$n+'''') -ErrorAction SilentlyContinue | ForEach-Object { if($_.CommandLine -and $_.CommandLine.Contains($p)){ $c++ } }; Write-Output $c"`) do set "playr_browser_instance_count=%%a"
+  exit /b 0
+)
+for /f %%a in ('wmic process where "name='%browser_process_name%'" get CommandLine 2^>nul ^| findstr /I /C:"%playr_profile_dir%" ^| find /c /v ""') do set "playr_browser_instance_count=%%a"
+where wmic >nul 2>nul
+if not errorlevel 1 exit /b 0
+echo %date% %time% WARNING: Cannot inspect process command line; falling back to generic %browser_process_name% count>> "%playr_log%"
+for /f %%a in ('tasklist /FI "IMAGENAME eq %browser_process_name%" /NH 2^>nul ^| find /c /I "%browser_process_name%"') do set "playr_browser_instance_count=%%a"
 exit /b 0
