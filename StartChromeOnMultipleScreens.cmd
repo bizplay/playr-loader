@@ -135,26 +135,27 @@ set "playr_profile_dir=%LOCALAPPDATA%\PlayrBrowserProfile"
 if not exist "%playr_profile_dir%" mkdir "%playr_profile_dir%"
 
 :: Find browser: Chrome -> Chromium -> Edge -> Internet Explorer (legacy fallback)
-:: Use single-line if/set (no parenthesized blocks) so %ProgramFiles(x86)% paths parse correctly.
+:: Expand Program Files (x86) once; use pf86 in paths and !browser_executable! inside ( ) blocks.
 ::
+set "pf86=%ProgramFiles(x86)%"
 set "browser_executable="
 
 :: Prefer Chrome
 if exist "%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe" set "browser_executable=%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"
-if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" set "browser_executable=%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
-if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" set "browser_executable=%ProgramFiles%\Google\Chrome\Application\chrome.exe"
+if not defined browser_executable if exist "%pf86%\Google\Chrome\Application\chrome.exe" set "browser_executable=%pf86%\Google\Chrome\Application\chrome.exe"
+if not defined browser_executable if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" set "browser_executable=%ProgramFiles%\Google\Chrome\Application\chrome.exe"
 
 :: Then Chromium
-if exist "%LOCALAPPDATA%\Chromium\Application\chrome.exe" set "browser_executable=%LOCALAPPDATA%\Chromium\Application\chrome.exe"
-if exist "%ProgramFiles(x86)%\Chromium\chrome.exe" set "browser_executable=%ProgramFiles(x86)%\Chromium\chrome.exe"
-if exist "%ProgramFiles%\Chromium\chrome.exe" set "browser_executable=%ProgramFiles%\Chromium\chrome.exe"
+if not defined browser_executable if exist "%LOCALAPPDATA%\Chromium\Application\chrome.exe" set "browser_executable=%LOCALAPPDATA%\Chromium\Application\chrome.exe"
+if not defined browser_executable if exist "%pf86%\Chromium\chrome.exe" set "browser_executable=%pf86%\Chromium\chrome.exe"
+if not defined browser_executable if exist "%ProgramFiles%\Chromium\chrome.exe" set "browser_executable=%ProgramFiles%\Chromium\chrome.exe"
 
 :: Then Edge (Chromium-based on supported Windows versions)
-if exist "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" set "browser_executable=%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
-if exist "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" set "browser_executable=%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"
+if not defined browser_executable if exist "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" set "browser_executable=%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
+if not defined browser_executable if exist "%pf86%\Microsoft\Edge\Application\msedge.exe" set "browser_executable=%pf86%\Microsoft\Edge\Application\msedge.exe"
 
 :: Last resort: Internet Explorer (legacy Windows only)
-if not defined browser_executable if exist "%ProgramFiles(x86)%\Internet Explorer\iexplore.exe" set "browser_executable=%ProgramFiles(x86)%\Internet Explorer\iexplore.exe"
+if not defined browser_executable if exist "%pf86%\Internet Explorer\iexplore.exe" set "browser_executable=%pf86%\Internet Explorer\iexplore.exe"
 if not defined browser_executable if exist "%ProgramFiles%\Internet Explorer\iexplore.exe" set "browser_executable=%ProgramFiles%\Internet Explorer\iexplore.exe"
 
 if not defined browser_executable (
@@ -164,19 +165,17 @@ if not defined browser_executable (
   exit /b 1
 )
 
-:: Pre-flight: browser executable must exist
-if not exist "%browser_executable%" (
-  where "%browser_executable%" >nul 2>nul
+:: Pre-flight: browser executable must exist (!var! avoids ")" in "(x86)" breaking IF blocks)
+if not exist "!browser_executable!" (
+  where "!browser_executable!" >nul 2>nul
   if errorlevel 1 (
-    echo %date% %time% ERROR: Browser not found: %browser_executable%>> "%playr_log%"
-    echo ERROR: Browser not found: %browser_executable%
+    echo %date% %time% ERROR: Browser not found: !browser_executable!>> "%playr_log%"
+    echo ERROR: Browser not found: !browser_executable!
     timeout /t 30 >nul
     exit /b 1
   )
 )
-echo %browser_executable% | findstr /i /c:"iexplore.exe" >nul && (
-  echo %date% %time% WARNING: Using Internet Explorer fallback; kiosk flags may not work>> "%playr_log%"
-)
+echo !browser_executable! | findstr /i /c:"iexplore.exe" >nul && echo %date% %time% WARNING: Using Internet Explorer fallback; kiosk flags may not work>> "%playr_log%"
 echo %date% %time% Browser: %browser_executable%>> "%playr_log%"
 echo %date% %time% Profile: %playr_profile_dir% (%user1%, %user2%, %user3%)>> "%playr_log%"
 echo %date% %time% Channels: %channel1% ^| %channel2% ^| %channel3%>> "%playr_log%"
