@@ -206,7 +206,9 @@ call :LAUNCH_PLAYR_BROWSER
 set "watchdog_interval_in_sec=300"
 set "watchdog_response_file=%TEMP%\playr_watchdog_response.txt"
 set "reboot_command=1"
-set "watchdog_url=https://ajax.playr.biz/watchdogs/%device_id%/command"
+call :ENCODE_DEVICE_ID_FOR_URL
+set "watchdog_url=https://ajax.playr.biz/watchdogs/%device_id_encoded%/command"
+echo %date% %time% Watchdog device id (encoded): %device_id_encoded%>> "%playr_log%"
 set "watchdog_remote_enabled=1"
 where curl >nul 2>nul
 if errorlevel 1 (
@@ -265,6 +267,32 @@ timeout /nobreak /t %watchdog_interval_in_sec%
 goto BROWSER_WATCHDOG_LOOP
 
 goto :eof
+
+:ENCODE_DEVICE_ID_FOR_URL
+set "device_id_encoded=%device_id%"
+set "DEVICE_ID=%device_id%"
+set "powershell_exe="
+if exist "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" (
+  set "powershell_exe=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+)
+if not defined powershell_exe if exist "%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe" (
+  set "powershell_exe=%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe"
+)
+if not defined powershell_exe (
+  for /f "delims=" %%P in ('where powershell 2^>nul') do (
+    if not defined powershell_exe set "powershell_exe=%%P"
+  )
+)
+if defined powershell_exe (
+  for /f "usebackq delims=" %%U in (`"%powershell_exe%" -NoProfile -Command "[uri]::EscapeDataString($env:DEVICE_ID)"`) do set "device_id_encoded=%%U"
+  exit /b 0
+)
+:: Fallback when PowerShell is unavailable: encode characters that break URL paths
+set "device_id_encoded=%device_id%"
+set "device_id_encoded=!device_id_encoded:;=%%3B!"
+set "device_id_encoded=!device_id_encoded::=%%3A!"
+set "device_id_encoded=!device_id_encoded: =%%20!"
+exit /b 0
 
 :PATCH_PLAYR_PROFILE_PREFERENCES
 set "PLAYR_PROFILE=%playr_profile_dir%"
