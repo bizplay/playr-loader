@@ -115,17 +115,6 @@ set "no_nagging_options=--disable-features=SameSiteByDefaultCookies,CookiesWitho
 ::
 set "playr_profile_dir=%LOCALAPPDATA%\PlayrBrowserProfile"
 if not exist "%playr_profile_dir%" mkdir "%playr_profile_dir%"
-:: Remove only volatile lock files from the dedicated profile.
-:: for %%F in ("%playr_profile_dir%\SingletonLock" "%playr_profile_dir%\SingletonCookie" "%playr_profile_dir%\SingletonSocket") do (
-for %%F in ("%playr_profile_dir%\SingletonLock") do (
-  if exist %%~F del %%~F /Q >nul 2>nul
-)
-:: If the dedicated profile has a Preferences file, mark it as cleanly exited or 
-:: delete it if patching the content of the file is impossible.
-:: Since playback might not work if the Preferences file indicates that the browser 
-:: crashed, it is worth taking the risk of deleting it in the exceptional 
-:: case that patching it is not possible.
-call :PATCH_PLAYR_PROFILE_PREFERENCES
 
 :: Find browser: Chrome -> Chromium -> Edge -> Internet Explorer (legacy fallback)
 ::
@@ -380,7 +369,20 @@ echo WScript.Quit 0
 ) > "%playr_patch_vbs%"
 exit /b 0
 
+:PREPARE_PLAYR_PROFILE
+echo %date% %time% Preparing Playr profile before launch>> "%playr_log%"
+for %%F in (
+  "%playr_profile_dir%\SingletonLock"
+  "%playr_profile_dir%\SingletonCookie"
+  "%playr_profile_dir%\SingletonSocket"
+) do (
+  if exist %%~F del %%~F /Q >nul 2>nul
+)
+call :PATCH_PLAYR_PROFILE_PREFERENCES
+exit /b 0
+
 :LAUNCH_PLAYR_BROWSER
+call :PREPARE_PLAYR_PROFILE
 echo %date% %time% Launching browser>> "%playr_log%"
 start "" "%browser_executable%" %gpu_options% %persistency_options% %no_nagging_options% --user-data-dir="%playr_profile_dir%" --start-fullscreen --kiosk --app="!app_url!"
 echo %date% %time% Browser launch requested>> "%playr_log%"

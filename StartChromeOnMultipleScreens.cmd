@@ -125,20 +125,6 @@ set "no_nagging_options=--disable-features=SameSiteByDefaultCookies,CookiesWitho
 ::
 set "playr_profile_dir=%LOCALAPPDATA%\PlayrBrowserProfile"
 if not exist "%playr_profile_dir%" mkdir "%playr_profile_dir%"
-:: Remove only volatile lock files from the dedicated profile.
-:: for %%F in ("%playr_profile_dir%\SingletonLock" "%playr_profile_dir%\SingletonCookie" "%playr_profile_dir%\SingletonSocket") do (
-for %%F in ("%playr_profile_dir%\SingletonLock") do (
-  if exist %%~F del %%~F /Q >nul 2>nul
-)
-:: Patch Preferences for each screen profile (Screen1, Screen2, Screen3).
-:: If the dedicated profile has a Preferences file, mark it as cleanly exited or 
-:: delete it if patching the content of the file is impossible.
-:: Since playback might not work if the Preferences file indicates that the browser 
-:: crashed, it is worth taking the risk of deleting it in the exceptional 
-:: case that patching it is not possible.
-call :PATCH_PLAYR_PROFILE_PREFERENCES "%user1%"
-call :PATCH_PLAYR_PROFILE_PREFERENCES "%user2%"
-call :PATCH_PLAYR_PROFILE_PREFERENCES "%user3%"
 
 :: Find browser: Chrome -> Chromium -> Edge -> Internet Explorer (legacy fallback)
 ::
@@ -326,11 +312,26 @@ set "device_id_encoded=!device_id_encoded: =%%20!"
 exit /b 0
 
 :LAUNCH_PLAYR_BROWSERS
+call :PREPARE_PLAYR_PROFILE
 echo %date% %time% Launching multi-screen browsers>> "%playr_log%"
 start "" "%browser_executable%" --user-data-dir="%playr_profile_dir%" --profile-directory=%user1% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position1% --start-fullscreen --kiosk --app="!app_url1!"
 start "" "%browser_executable%" --user-data-dir="%playr_profile_dir%" --profile-directory=%user2% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position2% --start-fullscreen --kiosk --app="!app_url2!"
 start "" "%browser_executable%" --user-data-dir="%playr_profile_dir%" --profile-directory=%user3% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position3% --start-fullscreen --kiosk --app="!app_url3!"
 echo %date% %time% Browser launch requested for all screens>> "%playr_log%"
+exit /b 0
+
+:PREPARE_PLAYR_PROFILE
+echo %date% %time% Preparing Playr profile before launch>> "%playr_log%"
+for %%F in (
+  "%playr_profile_dir%\SingletonLock"
+  "%playr_profile_dir%\SingletonCookie"
+  "%playr_profile_dir%\SingletonSocket"
+) do (
+  if exist %%~F del %%~F /Q >nul 2>nul
+)
+call :PATCH_PLAYR_PROFILE_PREFERENCES "%user1%"
+call :PATCH_PLAYR_PROFILE_PREFERENCES "%user2%"
+call :PATCH_PLAYR_PROFILE_PREFERENCES "%user3%"
 exit /b 0
 
 :PATCH_PLAYR_PROFILE_PREFERENCES
