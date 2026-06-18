@@ -1,7 +1,11 @@
-:: This batch file is provided to show digital signage content from playr.biz
-:: To read more on the purpose of this file and how to use it
-:: see the accompanying README.md file or
-:: contact your digital signage provider.
+:: This batch file is provided to show digital signage content from playr.biz.
+:: To read more on the purpose of this file and how to use it see the 
+:: accompanying README.md file or contact your digital signage provider.
+:: 
+:: This script is targetting Windows 7 and later. 
+:: It should work on Windows Vista,
+:: Windows XP misses a number of commands  which means that this script 
+:: should NOT be used it that version of Windows.
 ::
 :: This file is licensed under the MIT license.
 ::
@@ -16,8 +20,6 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
-:: Restart this script minimized (ref: https://stackoverflow.com/a/22357573/414376)
-::
 if not DEFINED IS_MINIMIZED (
   set "IS_MINIMIZED=1"
   start "" /min "%~dpnx0" %*
@@ -127,46 +129,27 @@ set "playr_profile_dir=%LOCALAPPDATA%\PlayrBrowserProfile"
 if not exist "%playr_profile_dir%" mkdir "%playr_profile_dir%"
 
 :: Find browser: Chrome -> Chromium -> Edge -> Internet Explorer (legacy fallback)
+:: Use single-line if/set (no parenthesized blocks) so %ProgramFiles(x86)% paths parse correctly.
 ::
 set "browser_executable="
 
 :: Prefer Chrome
-if exist "%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe" (
-  set "browser_executable=%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"
-)
-if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
-  set "browser_executable=%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
-)
-if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
-  set "browser_executable=%ProgramFiles%\Google\Chrome\Application\chrome.exe"
-)
+if exist "%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe" set "browser_executable=%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"
+if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" set "browser_executable=%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"
+if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" set "browser_executable=%ProgramFiles%\Google\Chrome\Application\chrome.exe"
 
 :: Then Chromium
-if exist "%LOCALAPPDATA%\Chromium\Application\chrome.exe" (
-  set "browser_executable=%LOCALAPPDATA%\Chromium\Application\chrome.exe"
-)
-if exist "%ProgramFiles(x86)%\Chromium\chrome.exe" (
-  set "browser_executable=%ProgramFiles(x86)%\Chromium\chrome.exe"
-)
-if exist "%ProgramFiles%\Chromium\chrome.exe" (
-  set "browser_executable=%ProgramFiles%\Chromium\chrome.exe"
-)
+if exist "%LOCALAPPDATA%\Chromium\Application\chrome.exe" set "browser_executable=%LOCALAPPDATA%\Chromium\Application\chrome.exe"
+if exist "%ProgramFiles(x86)%\Chromium\chrome.exe" set "browser_executable=%ProgramFiles(x86)%\Chromium\chrome.exe"
+if exist "%ProgramFiles%\Chromium\chrome.exe" set "browser_executable=%ProgramFiles%\Chromium\chrome.exe"
 
 :: Then Edge (Chromium-based on supported Windows versions)
-if exist "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" (
-  set "browser_executable=%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
-)
-if exist "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" (
-  set "browser_executable=%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"
-)
+if exist "%ProgramFiles%\Microsoft\Edge\Application\msedge.exe" set "browser_executable=%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"
+if exist "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" set "browser_executable=%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"
 
 :: Last resort: Internet Explorer (legacy Windows only)
-if not defined browser_executable if exist "%ProgramFiles(x86)%\Internet Explorer\iexplore.exe" (
-  set "browser_executable=%ProgramFiles(x86)%\Internet Explorer\iexplore.exe"
-)
-if not defined browser_executable if exist "%ProgramFiles%\Internet Explorer\iexplore.exe" (
-  set "browser_executable=%ProgramFiles%\Internet Explorer\iexplore.exe"
-)
+if not defined browser_executable if exist "%ProgramFiles(x86)%\Internet Explorer\iexplore.exe" set "browser_executable=%ProgramFiles(x86)%\Internet Explorer\iexplore.exe"
+if not defined browser_executable if exist "%ProgramFiles%\Internet Explorer\iexplore.exe" set "browser_executable=%ProgramFiles%\Internet Explorer\iexplore.exe"
 
 if not defined browser_executable (
   echo %date% %time% ERROR: No supported browser found>> "%playr_log%"
@@ -190,7 +173,7 @@ echo %browser_executable% | findstr /i /c:"iexplore.exe" >nul && (
 )
 echo %date% %time% Browser: %browser_executable%>> "%playr_log%"
 echo %date% %time% Profile: %playr_profile_dir% (%user1%, %user2%, %user3%)>> "%playr_log%"
-echo %date% %time% Channels: %channel1% | %channel2% | %channel3%>> "%playr_log%"
+echo %date% %time% Channels: %channel1% ^| %channel2% ^| %channel3%>> "%playr_log%"
 
 :: The window positions specified below will work when you use three 1080p screens (1920x1080)
 :: If you use screens with a different resolution you may need to change the values below.
