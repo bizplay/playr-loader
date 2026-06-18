@@ -86,31 +86,37 @@ set "user3=Screen3"
 :: Determine unique device ID
 ::
 set "device_id="
-for /f "tokens=3" %%a in ('REG QUERY HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography /v MachineGuid ^| findstr /ri "REG_SZ"') do ( set "device_id=%%a" )
-:: Plan b
+set "defined=false"
+for /f "tokens=3" %%a in ('REG QUERY HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography /v MachineGuid ^| findstr /ri "REG_SZ"') do set "device_id=%%a"
+set "device_id=%device_id: =%"
+
+:: Plan B - hardware UUID via PowerShell (replaces deprecated wmic)
 if not defined device_id (
-:: this works since the value we need is in the last line of the output of the command
-  for /f "tokens=* USEBACKQ" %%b in ('wmic csproduct get UUID') do ( set "device_id=%%b" )
+  call :RESOLVE_POWERSHELL_EXE
+  if defined powershell_exe (
+    for /f "usebackq delims=" %%u in (`"%powershell_exe%" -NoProfile -Command "(Get-WmiObject Win32_ComputerSystemProduct).UUID"`) do set "device_id=%%u"
+    set "device_id=!device_id: =!"
+  )
 )
-if not defined device_id (
-  set "defined=false"
-) else (
-  set "device_id=%device_id:~0,36%"
+
+if defined device_id (
+  set "device_id=!device_id:~0,36!"
   set "defined=true"
 )
-:: wnmic default
-if "%device_id%" == "00000000-0000-0000-0000-000000000000" ( set "defined=false" )
-if /i "%device_id:~0,4%" == "wmic" ( set "defined=false" )
-:: registry default
-if "%device_id%" == "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF" ( set "defined=false" )
-:: hardware default
-if "%device_id%" == "00020003-0004-0005-0006-000700080009" ( set "defined=false" )
-if "%defined%" == "true" ( goto DEVICE_ID_DEFINED )
+if "%device_id%" == "00000000-0000-0000-0000-000000000000" set "defined=false"
+if /i "%device_id:~0,4%" == "wmic" set "defined=false"
+if /i "%device_id%" == "UUID" set "defined=false"
+if "%device_id%" == "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF" set "defined=false"
+if "%device_id%" == "00020003-0004-0005-0006-000700080009" set "defined=false"
+if "%defined%" == "true" goto DEVICE_ID_DEFINED
 
-:: if a default id was found use the industry standard default and add the mac address to make it unique
-for /f "tokens=1" %%c in ('getmac ^| findstr /ri "device"') do ( set "mac=%%c" )
-set "mac_address=%mac:-=:%"
-set "device_id=00020003-0004-0005-0006-000700080009;%mac_address:~0,17%"
+:: Plan C - MAC fallback (getmac CSV, locale-independent)
+set "mac_address="
+for /f "tokens=1 delims=," %%m in ('getmac /fo csv /nh 2^>nul') do (
+  if not defined mac_address set "mac_address=%%~m"
+)
+set "mac_address=!mac_address:-=:!"
+set "device_id=00020003-0004-0005-0006-000700080009;!mac_address:~0,17!"
 
 :DEVICE_ID_DEFINED
 echo %date% %time% Device ID: %device_id%>> "%playr_log%"
@@ -268,9 +274,7 @@ goto BROWSER_WATCHDOG_LOOP
 
 goto :eof
 
-:ENCODE_DEVICE_ID_FOR_URL
-set "device_id_encoded=%device_id%"
-set "DEVICE_ID=%device_id%"
+:RESOLVE_POWERSHELL_EXE
 set "powershell_exe="
 if exist "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" (
   set "powershell_exe=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
@@ -283,6 +287,12 @@ if not defined powershell_exe (
     if not defined powershell_exe set "powershell_exe=%%P"
   )
 )
+exit /b 0
+
+:ENCODE_DEVICE_ID_FOR_URL
+set "device_id_encoded=%device_id%"
+set "DEVICE_ID=%device_id%"
+call :RESOLVE_POWERSHELL_EXE
 if defined powershell_exe (
   for /f "usebackq delims=" %%U in (`"%powershell_exe%" -NoProfile -Command "[uri]::EscapeDataString($env:DEVICE_ID)"`) do set "device_id_encoded=%%U"
   exit /b 0
@@ -320,18 +330,7 @@ exit /b 0
 :PATCH_PLAYR_PROFILE_PREFERENCES
 set "PLAYR_PROFILE=%playr_profile_dir%"
 set "PLAYR_PROFILE_SUBDIR=%~1"
-set "powershell_exe="
-if exist "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" (
-  set "powershell_exe=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
-)
-if not defined powershell_exe if exist "%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe" (
-  set "powershell_exe=%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe"
-)
-if not defined powershell_exe (
-  for /f "delims=" %%P in ('where powershell 2^>nul') do (
-    if not defined powershell_exe set "powershell_exe=%%P"
-  )
-)
+call :RESOLVE_POWERSHELL_EXE
 if defined powershell_exe (
   echo %date% %time% Patching %PLAYR_PROFILE_SUBDIR% Preferences via PowerShell>> "%playr_log%"
   "%powershell_exe%" -NoProfile -ExecutionPolicy Bypass -Command "$profileDir=$env:PLAYR_PROFILE; $sub=$env:PLAYR_PROFILE_SUBDIR; $p=Join-Path $profileDir (Join-Path $sub 'Preferences'); if(Test-Path $p){ try { $j=Get-Content -Raw $p | ConvertFrom-Json; if($null -eq $j.profile){ $j | Add-Member -MemberType NoteProperty -Name profile -Value ([pscustomobject]@{}) }; if($j.profile.PSObject.Properties.Name -contains 'exit_type'){ $j.profile.exit_type='Normal' } else { $j.profile | Add-Member -MemberType NoteProperty -Name exit_type -Value 'Normal' }; if($j.profile.PSObject.Properties.Name -contains 'exited_cleanly'){ $j.profile.exited_cleanly=$true } else { $j.profile | Add-Member -MemberType NoteProperty -Name exited_cleanly -Value $true }; $j | ConvertTo-Json -Depth 100 | Set-Content -Encoding UTF8 $p } catch { Rename-Item $p ($p + '.bad.' + (Get-Date -Format 'yyyyMMddHHmmss')) -Force } }" >nul 2>nul
@@ -411,18 +410,7 @@ exit /b 0
 set "playr_browser_instance_count=0"
 set "PLAYR_PROFILE_DIR=%playr_profile_dir%"
 set "BROWSER_PROCESS=%browser_process_name%"
-set "powershell_exe="
-if exist "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" (
-  set "powershell_exe=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
-)
-if not defined powershell_exe if exist "%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe" (
-  set "powershell_exe=%SystemRoot%\Sysnative\WindowsPowerShell\v1.0\powershell.exe"
-)
-if not defined powershell_exe (
-  for /f "delims=" %%P in ('where powershell 2^>nul') do (
-    if not defined powershell_exe set "powershell_exe=%%P"
-  )
-)
+call :RESOLVE_POWERSHELL_EXE
 if defined powershell_exe (
   for /f "usebackq delims=" %%a in (`"%powershell_exe%" -NoProfile -Command "$p=$env:PLAYR_PROFILE_DIR; $n=$env:BROWSER_PROCESS; $c=0; Get-WmiObject Win32_Process -Filter ('Name='''+$n+'''') -ErrorAction SilentlyContinue | ForEach-Object { if($_.CommandLine -and $_.CommandLine.Contains($p)){ $c++ } }; Write-Output $c"`) do set "playr_browser_instance_count=%%a"
   exit /b 0
