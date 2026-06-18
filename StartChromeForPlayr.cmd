@@ -174,7 +174,8 @@ echo %date% %time% Channel: %channel%>> "%playr_log%"
 
 set "replace=%%20"
 set "playr_loader_file_normalized=%playr_loader_file: =!replace!%"
-set "app_url=file:///%playr_loader_file_normalized%?channel=%channel%&watchdog_id=%device_id%"
+:: Use %%26 for & in query string (literal & breaks cmd echo/start even inside quotes)
+set "app_url=file:///%playr_loader_file_normalized%?channel=%channel%%26watchdog_id=%device_id%"
 echo %date% %time% URL: !app_url!>> "%playr_log%"
 for %%E in ("%browser_executable%") do set "browser_process_name=%%~nxE"
 echo %date% %time% Browser process: %browser_process_name%>> "%playr_log%"
