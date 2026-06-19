@@ -208,7 +208,8 @@ call :LAUNCH_PLAYR_BROWSERS
 
 :: Watchdog: remote reboot command (curl) and local browser restart loop
 ::
-set "watchdog_interval_in_sec=300"
+set "watchdog_remote_poll_interval_in_sec=305"
+set "watchdog_browser_check_interval_in_sec=30"
 set "watchdog_response_file=%TEMP%\playr_watchdog_response.txt"
 set "reboot_command=1"
 call :ENCODE_DEVICE_ID_FOR_URL
@@ -221,11 +222,11 @@ if errorlevel 1 (
   echo %date% %time% WARNING: curl not found; remote reboot watchdog disabled>> "%playr_log%"
   echo WARNING: curl not found. Remote reboot disabled; browser restart loop active. See %playr_log%
 ) else (
-  echo %date% %time% Watchdog: remote poll every %watchdog_interval_in_sec%s>> "%playr_log%"
+  echo %date% %time% Watchdog: remote poll every %watchdog_remote_poll_interval_in_sec%s>> "%playr_log%"
 )
-echo %date% %time% Watchdog: browser check every %watchdog_interval_in_sec%s>> "%playr_log%"
+echo %date% %time% Watchdog: browser check every %watchdog_browser_check_interval_in_sec%s>> "%playr_log%"
 :: first wait for the player to start properly
-timeout /nobreak /t %watchdog_interval_in_sec%
+timeout /nobreak /t %watchdog_remote_poll_interval_in_sec%
 
 if "%watchdog_remote_enabled%"=="0" goto BROWSER_WATCHDOG_LOOP
 
@@ -263,12 +264,12 @@ if "%reboot_command%"=="%watchdog_response%" (
 )
 call :RESTART_BROWSERS_IF_NEEDED
 echo %date% %time% Continuing watchdog (last server response: %watchdog_response%)>> "%playr_log%"
-timeout /nobreak /t %watchdog_interval_in_sec%
+timeout /nobreak /t %watchdog_remote_poll_interval_in_sec%
 goto WATCHDOG_LOOP
 
 :BROWSER_WATCHDOG_LOOP
 call :RESTART_BROWSERS_IF_NEEDED
-timeout /nobreak /t %watchdog_interval_in_sec%
+timeout /nobreak /t %watchdog_browser_check_interval_in_sec%
 goto BROWSER_WATCHDOG_LOOP
 
 goto :eof
