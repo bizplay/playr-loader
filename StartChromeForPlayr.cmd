@@ -174,10 +174,10 @@ echo %date% %time% Channel: %channel%>> "%playr_log%"
 
 set "replace=%%20"
 set "playr_loader_file_normalized=%playr_loader_file: =!replace!%"
+:: escaping the & by either url-encoding it (%%26) or by using ^&  for cmd echo/start
+:: does not work when starting Chrome from the command line as is doen later in this file
 set "app_url=file:///%playr_loader_file_normalized%?channel=%channel%&watchdog_id=%device_id%"
-:: Escape & for cmd (not for Chrome): literal & splits echo/start; %%26 is parsed as empty %%2 + "6"
-set "app_url_cmd=!app_url:&=^&!"
-echo %date% %time% URL: !app_url_cmd!>> "%playr_log%"
+echo %date% %time% URL: !app_url!>> "%playr_log%"
 for %%E in ("%browser_executable%") do set "browser_process_name=%%~nxE"
 echo %date% %time% Browser process: %browser_process_name%>> "%playr_log%"
 
@@ -369,7 +369,7 @@ exit /b 0
 :LAUNCH_PLAYR_BROWSER
 call :PREPARE_PLAYR_PROFILE
 echo %date% %time% Launching browser>> "%playr_log%"
-start "" "%browser_executable%" %gpu_options% %persistency_options% %no_nagging_options% --user-data-dir="%playr_profile_dir%" --start-fullscreen --kiosk --app="!app_url_cmd!"
+start "" "%browser_executable%" %gpu_options% %persistency_options% %no_nagging_options% --user-data-dir="%playr_profile_dir%" --start-fullscreen --kiosk --app="!app_url!"
 echo %date% %time% Browser launch requested>> "%playr_log%"
 exit /b 0
 
