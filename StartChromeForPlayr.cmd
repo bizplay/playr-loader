@@ -177,7 +177,8 @@ set "playr_loader_file_normalized=%playr_loader_file: =!replace!%"
 :: escaping the & by either url-encoding it (%%26) or by using ^&  for cmd echo/start
 :: does not work when starting Chrome from the command line as is doen later in this file
 set "app_url=file:///%playr_loader_file_normalized%?channel=%channel%&watchdog_id=%device_id%"
-echo %date% %time% URL: !app_url!>> "%playr_log%"
+set "app_url_cmd=!app_url:&=^&!"
+echo %date% %time% URL: !app_url_cmd!>> "%playr_log%"
 for %%E in ("%browser_executable%") do set "browser_process_name=%%~nxE"
 echo %date% %time% Browser process: %browser_process_name%>> "%playr_log%"
 
@@ -189,11 +190,12 @@ rundll32 user32.dll,SetCursorPos
 ::
 call :LAUNCH_PLAYR_BROWSER
 
-:: Watchdog: remote reboot command (curl) and local browser restart loop
+:: Watchdog: remote reboot command (curl), process check, and CPU stall detection
 ::
 set "watchdog_remote_poll_interval_in_sec=305"
 set "watchdog_browser_check_interval_in_sec=60"
 set "watchdog_response_file=%TEMP%\playr_watchdog_response.txt"
+set "playr_cpu_state_file=%TEMP%\playr_browser_cpu_ticks.txt"
 set "reboot_command=1"
 call :ENCODE_DEVICE_ID_FOR_URL
 set "watchdog_url=https://ajax.playr.biz/watchdogs/%device_id_encoded%/command"
@@ -207,13 +209,29 @@ if errorlevel 1 (
 ) else (
   echo %date% %time% Watchdog: remote poll every %watchdog_remote_poll_interval_in_sec%s>> "%playr_log%"
 )
-echo %date% %time% Watchdog: browser check every %watchdog_browser_check_interval_in_sec%s>> "%playr_log%"
+echo %date% %time% Watchdog: browser and CPU stall check every %watchdog_browser_check_interval_in_sec%s>> "%playr_log%"
+set /a watchdog_remote_poll_ticks=watchdog_remote_poll_interval_in_sec / watchdog_browser_check_interval_in_sec
+if !watchdog_remote_poll_ticks! lss 1 set /a watchdog_remote_poll_ticks=1
+set /a watchdog_tick=0
+call :RESET_PLAYR_CPU_STATE
 :: first wait for the player to start properly
 timeout /nobreak /t %watchdog_browser_check_interval_in_sec%
 
-if "%watchdog_remote_enabled%"=="0" goto BROWSER_WATCHDOG_LOOP
-
 :WATCHDOG_LOOP
+call :RESTART_BROWSER_IF_NEEDED
+call :CHECK_PLAYR_BROWSER_CPU_STALL
+if "%watchdog_remote_enabled%"=="1" (
+  set /a watchdog_tick+=1
+  if !watchdog_tick! geq !watchdog_remote_poll_ticks! (
+    set /a watchdog_tick=0
+    call :WATCHDOG_REMOTE_POLL
+    if errorlevel 1 exit /b 0
+  )
+)
+timeout /nobreak /t %watchdog_browser_check_interval_in_sec%
+goto WATCHDOG_LOOP
+
+:WATCHDOG_REMOTE_POLL
 :: default when the server does not respond or curl fails
 set "response=2"
 if exist "%watchdog_response_file%" del "%watchdog_response_file%" /Q >nul 2>nul
@@ -243,17 +261,10 @@ if "%reboot_command%"=="%watchdog_response%" (
   echo %date% %time% Reboot command received from server>> "%playr_log%"
   echo Rebooting the device in 30 seconds...
   shutdown /r /t 30
-  exit /b 0
+  exit /b 1
 )
-call :RESTART_BROWSER_IF_NEEDED
 echo %date% %time% Continuing watchdog (last server response: %watchdog_response%)>> "%playr_log%"
-timeout /nobreak /t %watchdog_remote_poll_interval_in_sec%
-goto WATCHDOG_LOOP
-
-:BROWSER_WATCHDOG_LOOP
-call :RESTART_BROWSER_IF_NEEDED
-timeout /nobreak /t %watchdog_browser_check_interval_in_sec%
-goto BROWSER_WATCHDOG_LOOP
+exit /b 0
 
 goto :eof
 
@@ -379,9 +390,14 @@ exit /b 0
 
 :LAUNCH_PLAYR_BROWSER
 call :PREPARE_PLAYR_PROFILE
+call :RESET_PLAYR_CPU_STATE
 echo %date% %time% Launching browser>> "%playr_log%"
-start "" "%browser_executable%" %gpu_options% %persistency_options% %no_nagging_options% --user-data-dir="%playr_profile_dir%" --start-fullscreen --kiosk --app="!app_url!"
+start "" "%browser_executable%" %gpu_options% %persistency_options% %no_nagging_options% --user-data-dir="%playr_profile_dir%" --start-fullscreen --kiosk --app="!app_url_cmd!"
 echo %date% %time% Browser launch requested>> "%playr_log%"
+exit /b 0
+
+:RESET_PLAYR_CPU_STATE
+if defined playr_cpu_state_file if exist "!playr_cpu_state_file!" del "!playr_cpu_state_file!" /Q >nul 2>nul
 exit /b 0
 
 :RESTART_BROWSER_IF_NEEDED
@@ -391,13 +407,48 @@ echo %date% %time% WARNING: Playr browser ^(%browser_process_name% with profile 
 call :LAUNCH_PLAYR_BROWSER
 exit /b 0
 
+:CHECK_PLAYR_BROWSER_CPU_STALL
+call :IS_PLAYR_BROWSER_RUNNING
+if not "%playr_browser_running%"=="1" exit /b 0
+set "PLAYR_PROFILE_DIR=%playr_profile_dir%"
+set "BROWSER_PROCESS=%browser_process_name%"
+set "PLAYR_CPU_STATE_FILE=%playr_cpu_state_file%"
+call :RESOLVE_POWERSHELL_EXE
+if not defined powershell_exe (
+  echo %date% %time% WARNING: CPU stall check requires PowerShell; skipping>> "%playr_log%"
+  exit /b 0
+)
+"%powershell_exe%" -NoProfile -Command "$p=$env:PLAYR_PROFILE_DIR;$n=$env:BROWSER_PROCESS;$f=$env:PLAYR_CPU_STATE_FILE;$t=[uint64]0;Get-WmiObject Win32_Process -Filter ('Name='''+$n+'''') -ErrorAction SilentlyContinue | ForEach-Object { if($_.CommandLine -and ($_.CommandLine.Contains($p) -or $_.CommandLine.Contains('playr_loader.html'))) { $t += [uint64]$_.KernelModeTime + [uint64]$_.UserModeTime } }; $prev=$null; if(Test-Path -LiteralPath $f) { $prev=Get-Content -LiteralPath $f -ErrorAction SilentlyContinue }; Set-Content -LiteralPath $f -Value ([string]$t) -Encoding ascii -NoNewline; if($null -eq $prev -or $prev -eq '') { exit 0 }; if([uint64]$prev -ge $t) { exit 1 }; exit 0" >nul 2>nul
+if errorlevel 1 (
+  echo %date% %time% WARNING: Playr browser CPU time unchanged over %watchdog_browser_check_interval_in_sec%s; killing and restarting %browser_process_name%>> "%playr_log%"
+  call :KILL_PLAYR_BROWSER
+  call :RESET_PLAYR_CPU_STATE
+  call :LAUNCH_PLAYR_BROWSER
+)
+exit /b 0
+
+:KILL_PLAYR_BROWSER
+echo %date% %time% Killing Playr browser processes (%browser_process_name%)>> "%playr_log%"
+set "PLAYR_PROFILE_DIR=%playr_profile_dir%"
+set "BROWSER_PROCESS=%browser_process_name%"
+call :RESOLVE_POWERSHELL_EXE
+if defined powershell_exe (
+  "%powershell_exe%" -NoProfile -Command "$p=$env:PLAYR_PROFILE_DIR;$n=$env:BROWSER_PROCESS;Get-WmiObject Win32_Process -Filter ('Name='''+$n+'''') -ErrorAction SilentlyContinue | ForEach-Object { if($_.CommandLine -and ($_.CommandLine.Contains($p) -or $_.CommandLine.Contains('playr_loader.html'))) { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue } }" >nul 2>nul
+  timeout /nobreak /t 3 >nul
+  exit /b 0
+)
+wmic process where "name='%browser_process_name%' and CommandLine like '%%PlayrBrowserProfile%%'" call terminate >nul 2>nul
+wmic process where "name='%browser_process_name%' and CommandLine like '%%playr_loader.html%%'" call terminate >nul 2>nul
+timeout /nobreak /t 3 >nul
+exit /b 0
+
 :IS_PLAYR_BROWSER_RUNNING
 set "playr_browser_running=0"
 set "PLAYR_PROFILE_DIR=%playr_profile_dir%"
 set "BROWSER_PROCESS=%browser_process_name%"
 call :RESOLVE_POWERSHELL_EXE
 if defined powershell_exe (
-  "%powershell_exe%" -NoProfile -Command "$p=$env:PLAYR_PROFILE_DIR; $n=$env:BROWSER_PROCESS; $f=$false; Get-WmiObject Win32_Process -Filter ('Name='''+$n+'''') -ErrorAction SilentlyContinue | ForEach-Object { if($_.CommandLine -and $_.CommandLine.Contains($p)){ $f=$true } }; if($f){exit 0}else{exit 1}" >nul 2>nul
+  "%powershell_exe%" -NoProfile -Command "$p=$env:PLAYR_PROFILE_DIR; $n=$env:BROWSER_PROCESS; $f=$false; Get-WmiObject Win32_Process -Filter ('Name='''+$n+'''') -ErrorAction SilentlyContinue | ForEach-Object { if($_.CommandLine -and ($_.CommandLine.Contains($p) -or $_.CommandLine.Contains('playr_loader.html'))){ $f=$true } }; if($f){exit 0}else{exit 1}" >nul 2>nul
   if not errorlevel 1 set "playr_browser_running=1"
   exit /b 0
 )
