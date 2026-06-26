@@ -175,10 +175,9 @@ echo %date% %time% Channel: %channel%>> "%playr_log%"
 set "replace=%%20"
 set "playr_loader_file_normalized=%playr_loader_file: =!replace!%"
 :: escaping the & by either url-encoding it (%%26) or by using ^&  for cmd echo/start
-:: does not work when starting Chrome from the command line as is doen later in this file
+:: DOES NOT work when starting Chrome from the command line as is done later in this file
 set "app_url=file:///%playr_loader_file_normalized%?channel=%channel%&watchdog_id=%device_id%"
-set "app_url_cmd=!app_url:&=^&!"
-echo %date% %time% URL: !app_url_cmd!>> "%playr_log%"
+echo %date% %time% URL: !app_url!>> "%playr_log%"
 for %%E in ("%browser_executable%") do set "browser_process_name=%%~nxE"
 echo %date% %time% Browser process: %browser_process_name%>> "%playr_log%"
 
@@ -259,8 +258,8 @@ if defined response (
 )
 if "%reboot_command%"=="%watchdog_response%" (
   echo %date% %time% Reboot command received from server>> "%playr_log%"
-  echo Rebooting the device in 30 seconds...
-  shutdown /r /t 30
+  echo Rebooting the device in 5 seconds...
+  shutdown /r /t 5
   exit /b 1
 )
 echo %date% %time% Continuing watchdog (last server response: %watchdog_response%)>> "%playr_log%"
@@ -392,7 +391,7 @@ exit /b 0
 call :PREPARE_PLAYR_PROFILE
 call :RESET_PLAYR_CPU_STATE
 echo %date% %time% Launching browser>> "%playr_log%"
-start "" "%browser_executable%" %gpu_options% %persistency_options% %no_nagging_options% --user-data-dir="%playr_profile_dir%" --start-fullscreen --kiosk --app="!app_url_cmd!"
+start "" "%browser_executable%" %gpu_options% %persistency_options% %no_nagging_options% --user-data-dir="%playr_profile_dir%" --start-fullscreen --kiosk --app="!app_url!"
 echo %date% %time% Browser launch requested>> "%playr_log%"
 exit /b 0
 
