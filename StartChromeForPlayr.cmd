@@ -272,6 +272,16 @@ if not defined powershell_exe (
 )
 exit /b 0
 
+:RESOLVE_WMIC_EXE
+set "wmic_exe="
+if exist "%SystemRoot%\System32\wbem\WMIC.exe" set "wmic_exe=%SystemRoot%\System32\wbem\WMIC.exe"
+if not defined wmic_exe (
+  for /f "delims=" %%W in ('where wmic 2^>nul') do (
+    if not defined wmic_exe set "wmic_exe=%%W"
+  )
+)
+exit /b 0
+
 :ENCODE_DEVICE_ID_FOR_URL
 set "device_id_encoded=%device_id%"
 set "DEVICE_ID=%device_id%"
@@ -391,9 +401,12 @@ if defined powershell_exe (
   if not errorlevel 1 set "playr_browser_running=1"
   exit /b 0
 )
-echo %date% %time% Checking browser status with wmic>> "%playr_log%"
-wmic process where "name='%browser_process_name%'" get CommandLine 2>nul | findstr /I /C:"%playr_profile_dir%" >nul
-if not errorlevel 1 set "playr_browser_running=1"
+call :RESOLVE_WMIC_EXE
+if defined wmic_exe (
+  echo %date% %time% Checking browser status with wmic>> "%playr_log%"
+  "%wmic_exe%" process where "name='%browser_process_name%'" get CommandLine 2>nul | findstr /I /C:"%playr_profile_dir%" >nul
+  if not errorlevel 1 set "playr_browser_running=1"
+)
 if "%playr_browser_running%"=="1" exit /b 0
 echo %date% %time% WARNING: Cannot inspect process command line; falling back to generic %browser_process_name% check>> "%playr_log%"
 tasklist /FI "IMAGENAME eq %browser_process_name%" 2>nul | find /I "%browser_process_name%" >nul

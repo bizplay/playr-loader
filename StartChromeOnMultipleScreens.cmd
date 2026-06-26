@@ -289,6 +289,16 @@ if not defined powershell_exe (
 )
 exit /b 0
 
+:RESOLVE_WMIC_EXE
+set "wmic_exe="
+if exist "%SystemRoot%\System32\wbem\WMIC.exe" set "wmic_exe=%SystemRoot%\System32\wbem\WMIC.exe"
+if not defined wmic_exe (
+  for /f "delims=" %%W in ('where wmic 2^>nul') do (
+    if not defined wmic_exe set "wmic_exe=%%W"
+  )
+)
+exit /b 0
+
 :ENCODE_DEVICE_ID_FOR_URL
 set "device_id_encoded=%device_id%"
 set "DEVICE_ID=%device_id%"
@@ -415,9 +425,11 @@ if defined powershell_exe (
   for /f "usebackq delims=" %%a in (`"%powershell_exe%" -NoProfile -Command "$p=$env:PLAYR_PROFILE_DIR; $n=$env:BROWSER_PROCESS; $c=0; Get-WmiObject Win32_Process -Filter ('Name='''+$n+'''') -ErrorAction SilentlyContinue | ForEach-Object { if($_.CommandLine -and $_.CommandLine.Contains($p)){ $c++ } }; Write-Output $c"`) do set "playr_browser_instance_count=%%a"
   exit /b 0
 )
-for /f %%a in ('wmic process where "name='%browser_process_name%'" get CommandLine 2^>nul ^| findstr /I /C:"%playr_profile_dir%" ^| find /c /v ""') do set "playr_browser_instance_count=%%a"
-where wmic >nul 2>nul
-if not errorlevel 1 exit /b 0
-echo %date% %time% WARNING: Cannot inspect process command line; falling back to generic %browser_process_name% count>> "%playr_log%"
+call :RESOLVE_WMIC_EXE
+if defined wmic_exe (
+  for /f %%a in ('"%wmic_exe%" process where "name='%browser_process_name%'" get CommandLine 2^>nul ^| findstr /I /C:"%playr_profile_dir%" ^| find /c /v ""') do set "playr_browser_instance_count=%%a"
+  exit /b 0
+)
+echo %date% %time% WARNING: wmic not available; falling back to generic %browser_process_name% count>> "%playr_log%"
 for /f %%a in ('tasklist /FI "IMAGENAME eq %browser_process_name%" /NH 2^>nul ^| find /c /I "%browser_process_name%"') do set "playr_browser_instance_count=%%a"
 exit /b 0
