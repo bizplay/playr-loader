@@ -192,7 +192,7 @@ call :LAUNCH_PLAYR_BROWSER
 :: Watchdog: remote reboot command (curl) and local browser restart loop
 ::
 set "watchdog_remote_poll_interval_in_sec=305"
-set "watchdog_browser_check_interval_in_sec=30"
+set "watchdog_browser_check_interval_in_sec=60"
 set "watchdog_response_file=%TEMP%\playr_watchdog_response.txt"
 set "reboot_command=1"
 call :ENCODE_DEVICE_ID_FOR_URL
@@ -209,7 +209,7 @@ if errorlevel 1 (
 )
 echo %date% %time% Watchdog: browser check every %watchdog_browser_check_interval_in_sec%s>> "%playr_log%"
 :: first wait for the player to start properly
-timeout /nobreak /t %watchdog_remote_poll_interval_in_sec%
+timeout /nobreak /t %watchdog_browser_check_interval_in_sec%
 
 if "%watchdog_remote_enabled%"=="0" goto BROWSER_WATCHDOG_LOOP
 
@@ -377,7 +377,7 @@ exit /b 0
 :RESTART_BROWSER_IF_NEEDED
 call :IS_PLAYR_BROWSER_RUNNING
 if "%playr_browser_running%"=="1" exit /b 0
-echo %date% %time% WARNING: Playr browser (%browser_process_name% with profile %playr_profile_dir%) not running; restarting>> "%playr_log%"
+echo %date% %time% WARNING: Playr browser ^(%browser_process_name% with profile %playr_profile_dir%^) not running; restarting>> "%playr_log%"
 call :LAUNCH_PLAYR_BROWSER
 exit /b 0
 
@@ -391,6 +391,7 @@ if defined powershell_exe (
   if not errorlevel 1 set "playr_browser_running=1"
   exit /b 0
 )
+echo %date% %time% Checking browser status with wmic>> "%playr_log%"
 wmic process where "name='%browser_process_name%'" get CommandLine 2>nul | findstr /I /C:"%playr_profile_dir%" >nul
 if not errorlevel 1 set "playr_browser_running=1"
 if "%playr_browser_running%"=="1" exit /b 0
