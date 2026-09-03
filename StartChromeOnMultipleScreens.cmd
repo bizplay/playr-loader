@@ -91,13 +91,9 @@ for /f "tokens=3" %%a in ('REG QUERY HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Crypt
 set "device_id=%device_id: =%"
 
 :: Plan B - hardware UUID via PowerShell (replaces deprecated wmic)
-if not defined device_id (
-  call :RESOLVE_POWERSHELL_EXE
-  if defined powershell_exe (
-    for /f "usebackq delims=" %%u in (`"%powershell_exe%" -NoProfile -Command "(Get-WmiObject Win32_ComputerSystemProduct).UUID"`) do set "device_id=%%u"
-    set "device_id=!device_id: =!"
-  )
-)
+:: Done in a subroutine (not a nested for /f `"%powershell_exe%" ...`) to avoid the cmd /c
+:: outer-quote-stripping bug that yields "syntax of the filename ... is incorrect".
+if not defined device_id call :RESOLVE_DEVICE_ID_VIA_POWERSHELL
 
 if defined device_id (
   set "device_id=!device_id:~0,36!"
@@ -213,8 +209,11 @@ set "watchdog_browser_check_interval_in_sec=30"
 set "watchdog_response_file=%TEMP%\playr_watchdog_response.txt"
 set "reboot_command=1"
 call :ENCODE_DEVICE_ID_FOR_URL
-set "watchdog_url=https://ajax.playr.biz/watchdogs/%device_id_encoded%/command"
-echo %date% %time% Watchdog device id (encoded): %device_id_encoded%>> "%playr_log%"
+:: Use delayed expansion (!var!) here: device_id_encoded may contain literal % sequences
+:: (e.g. %3A) from URL-encoding. Percent expansion (%var%) would mis-pair those % signs
+:: with %playr_log% on the same line and corrupt the command (breaks on non-English Windows).
+set "watchdog_url=https://ajax.playr.biz/watchdogs/!device_id_encoded!/command"
+echo %date% %time% Watchdog device id (encoded): !device_id_encoded!>> "%playr_log%"
 set "watchdog_remote_enabled=1"
 where curl >nul 2>nul
 if errorlevel 1 (
@@ -234,7 +233,7 @@ if "%watchdog_remote_enabled%"=="0" goto BROWSER_WATCHDOG_LOOP
 :: default when the server does not respond or curl fails
 set "response=2"
 if exist "%watchdog_response_file%" del "%watchdog_response_file%" /Q >nul 2>nul
-curl -k "%watchdog_url%" -o "%watchdog_response_file%" -s
+curl -k "!watchdog_url!" -o "%watchdog_response_file%" -s
 if errorlevel 1 (
   echo %date% %time% WARNING: curl failed, errorlevel %errorlevel%>> "%playr_log%"
 ) else if exist "%watchdog_response_file%" (
@@ -299,13 +298,33 @@ if not defined wmic_exe (
 )
 exit /b 0
 
+:RESOLVE_DEVICE_ID_VIA_POWERSHELL
+call :RESOLVE_POWERSHELL_EXE
+if not defined powershell_exe exit /b 0
+"%powershell_exe%" -NoProfile -Command "(Get-WmiObject Win32_ComputerSystemProduct).UUID" > "%TEMP%\playr_device_id.txt" 2>nul
+if exist "%TEMP%\playr_device_id.txt" (
+  for /f "usebackq delims=" %%u in ("%TEMP%\playr_device_id.txt") do set "device_id=%%u"
+  del "%TEMP%\playr_device_id.txt" /Q >nul 2>nul
+)
+set "device_id=!device_id: =!"
+exit /b 0
+
 :ENCODE_DEVICE_ID_FOR_URL
 set "device_id_encoded=%device_id%"
 set "DEVICE_ID=%device_id%"
 call :RESOLVE_POWERSHELL_EXE
+:: Do NOT run PowerShell inside for /f `"%powershell_exe%" ...`: with more than two
+:: quote chars on the line, cmd /c strips the outer quotes and the exe path ends up with
+:: a trailing quote -> "The filename, directory name, or volume label syntax is incorrect".
+:: Instead redirect PowerShell stdout to a temp file (CMD does the redirect = ANSI text)
+:: and read it back.
 if defined powershell_exe (
-  for /f "usebackq delims=" %%U in (`"%powershell_exe%" -NoProfile -Command "[uri]::EscapeDataString($env:DEVICE_ID)"`) do set "device_id_encoded=%%U"
-  exit /b 0
+  "%powershell_exe%" -NoProfile -Command "[uri]::EscapeDataString($env:DEVICE_ID)" > "%TEMP%\playr_device_id_encoded.txt" 2>nul
+  if exist "%TEMP%\playr_device_id_encoded.txt" (
+    for /f "usebackq delims=" %%U in ("%TEMP%\playr_device_id_encoded.txt") do set "device_id_encoded=%%U"
+    del "%TEMP%\playr_device_id_encoded.txt" /Q >nul 2>nul
+    exit /b 0
+  )
 )
 :: Fallback when PowerShell is unavailable: encode characters that break URL paths
 set "device_id_encoded=%device_id%"
@@ -324,13 +343,23 @@ echo %date% %time% Browser launch requested for all screens>> "%playr_log%"
 exit /b 0
 
 :PREPARE_PLAYR_PROFILE
+:: Never touch the profile of running browsers: deleting Singleton* locks or rewriting
+:: Preferences under live Chrome/Edge instances disrupts them (and can look like a random
+:: shutdown). Only clean locks / patch Preferences when the screens are NOT all running.
+call :COUNT_PLAYR_BROWSER_INSTANCES
+if !playr_browser_instance_count! geq 3 (
+  echo %date% %time% All Playr browser screens already running; skipping profile lock cleanup / Preferences patch>> "%playr_log%"
+  exit /b 0
+)
 echo %date% %time% Preparing Playr profile before launch>> "%playr_log%"
+:: Quote the path (%%~F strips quotes): %playr_profile_dir% lives under %LOCALAPPDATA%,
+:: which contains the account name and may include spaces or other special characters.
 for %%F in (
   "%playr_profile_dir%\SingletonLock"
   "%playr_profile_dir%\SingletonCookie"
   "%playr_profile_dir%\SingletonSocket"
 ) do (
-  if exist %%~F del %%~F /Q >nul 2>nul
+  if exist "%%~F" del "%%~F" /Q >nul 2>nul
 )
 call :PATCH_PLAYR_PROFILE_PREFERENCES "%user1%"
 call :PATCH_PLAYR_PROFILE_PREFERENCES "%user2%"
@@ -421,13 +450,24 @@ set "playr_browser_instance_count=0"
 set "PLAYR_PROFILE_DIR=%playr_profile_dir%"
 set "BROWSER_PROCESS=%browser_process_name%"
 call :RESOLVE_POWERSHELL_EXE
+:: Run the counter as a normal command line and read the result from a temp file.
+:: A for /f `"%powershell_exe%" ...` (or `"%wmic_exe%" ...`) hits the cmd /c outer-quote
+:: stripping bug -> "syntax of the filename ... is incorrect" and leaves the count at 0.
 if defined powershell_exe (
-  for /f "usebackq delims=" %%a in (`"%powershell_exe%" -NoProfile -Command "$p=$env:PLAYR_PROFILE_DIR; $n=$env:BROWSER_PROCESS; $c=0; Get-WmiObject Win32_Process -Filter ('Name='''+$n+'''') -ErrorAction SilentlyContinue | ForEach-Object { if($_.CommandLine -and $_.CommandLine.Contains($p)){ $c++ } }; Write-Output $c"`) do set "playr_browser_instance_count=%%a"
+  "%powershell_exe%" -NoProfile -Command "$p=$env:PLAYR_PROFILE_DIR; $n=$env:BROWSER_PROCESS; $c=0; Get-WmiObject Win32_Process -Filter ('Name='''+$n+'''') -ErrorAction SilentlyContinue | ForEach-Object { if($_.CommandLine -and $_.CommandLine.Contains($p)){ $c++ } }; Write-Output $c" > "%TEMP%\playr_browser_count.txt" 2>nul
+  if exist "%TEMP%\playr_browser_count.txt" (
+    for /f "usebackq delims=" %%a in ("%TEMP%\playr_browser_count.txt") do set "playr_browser_instance_count=%%a"
+    del "%TEMP%\playr_browser_count.txt" /Q >nul 2>nul
+  )
   exit /b 0
 )
 call :RESOLVE_WMIC_EXE
 if defined wmic_exe (
-  for /f %%a in ('"%wmic_exe%" process where "name='%browser_process_name%'" get CommandLine 2^>nul ^| findstr /I /C:"%playr_profile_dir%" ^| find /c /v ""') do set "playr_browser_instance_count=%%a"
+  "%wmic_exe%" process where "name='%browser_process_name%'" get CommandLine 2>nul | findstr /I /C:"%playr_profile_dir%" | find /c /v "" > "%TEMP%\playr_browser_count.txt" 2>nul
+  if exist "%TEMP%\playr_browser_count.txt" (
+    for /f "usebackq delims=" %%a in ("%TEMP%\playr_browser_count.txt") do set "playr_browser_instance_count=%%a"
+    del "%TEMP%\playr_browser_count.txt" /Q >nul 2>nul
+  )
   exit /b 0
 )
 echo %date% %time% WARNING: wmic not available; falling back to generic %browser_process_name% count>> "%playr_log%"
