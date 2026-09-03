@@ -196,8 +196,11 @@ set "watchdog_browser_check_interval_in_sec=60"
 set "watchdog_response_file=%TEMP%\playr_watchdog_response.txt"
 set "reboot_command=1"
 call :ENCODE_DEVICE_ID_FOR_URL
-set "watchdog_url=https://ajax.playr.biz/watchdogs/%device_id_encoded%/command"
-echo %date% %time% Watchdog device id (encoded): %device_id_encoded%>> "%playr_log%"
+:: Use delayed expansion (!var!) here: device_id_encoded may contain literal % sequences
+:: (e.g. %3A) from URL-encoding. Percent expansion (%var%) would mis-pair those % signs
+:: with %playr_log% on the same line and corrupt the command (breaks on non-English Windows).
+set "watchdog_url=https://ajax.playr.biz/watchdogs/!device_id_encoded!/command"
+echo %date% %time% Watchdog device id (encoded): !device_id_encoded!>> "%playr_log%"
 set "watchdog_remote_enabled=1"
 where curl >nul 2>nul
 if errorlevel 1 (
@@ -217,7 +220,7 @@ if "%watchdog_remote_enabled%"=="0" goto BROWSER_WATCHDOG_LOOP
 :: default when the server does not respond or curl fails
 set "response=2"
 if exist "%watchdog_response_file%" del "%watchdog_response_file%" /Q >nul 2>nul
-curl -k "%watchdog_url%" -o "%watchdog_response_file%" -s
+curl -k "!watchdog_url!" -o "%watchdog_response_file%" -s
 if errorlevel 1 (
   echo %date% %time% WARNING: curl failed, errorlevel %errorlevel%>> "%playr_log%"
 ) else if exist "%watchdog_response_file%" (
