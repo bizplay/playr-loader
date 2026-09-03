@@ -74,13 +74,9 @@ for /f "tokens=3" %%a in ('REG QUERY HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Crypt
 set "device_id=%device_id: =%"
 
 :: Plan B - hardware UUID via PowerShell (replaces deprecated wmic)
-if not defined device_id (
-  call :RESOLVE_POWERSHELL_EXE
-  if defined powershell_exe (
-    for /f "usebackq delims=" %%u in (`"%powershell_exe%" -NoProfile -Command "(Get-WmiObject Win32_ComputerSystemProduct).UUID"`) do set "device_id=%%u"
-    set "device_id=!device_id: =!"
-  )
-)
+:: Done in a subroutine (not a nested for /f `"%powershell_exe%" ...`) to avoid the cmd /c
+:: outer-quote-stripping bug that yields "syntax of the filename ... is incorrect".
+if not defined device_id call :RESOLVE_DEVICE_ID_VIA_POWERSHELL
 
 if defined device_id (
   set "device_id=!device_id:~0,36!"
@@ -285,13 +281,33 @@ if not defined wmic_exe (
 )
 exit /b 0
 
+:RESOLVE_DEVICE_ID_VIA_POWERSHELL
+call :RESOLVE_POWERSHELL_EXE
+if not defined powershell_exe exit /b 0
+"%powershell_exe%" -NoProfile -Command "(Get-WmiObject Win32_ComputerSystemProduct).UUID" > "%TEMP%\playr_device_id.txt" 2>nul
+if exist "%TEMP%\playr_device_id.txt" (
+  for /f "usebackq delims=" %%u in ("%TEMP%\playr_device_id.txt") do set "device_id=%%u"
+  del "%TEMP%\playr_device_id.txt" /Q >nul 2>nul
+)
+set "device_id=!device_id: =!"
+exit /b 0
+
 :ENCODE_DEVICE_ID_FOR_URL
 set "device_id_encoded=%device_id%"
 set "DEVICE_ID=%device_id%"
 call :RESOLVE_POWERSHELL_EXE
+:: Do NOT run PowerShell inside for /f `"%powershell_exe%" ...`: with more than two
+:: quote chars on the line, cmd /c strips the outer quotes and the exe path ends up with
+:: a trailing quote -> "The filename, directory name, or volume label syntax is incorrect".
+:: Instead redirect PowerShell stdout to a temp file (CMD does the redirect = ANSI text)
+:: and read it back.
 if defined powershell_exe (
-  for /f "usebackq delims=" %%U in (`"%powershell_exe%" -NoProfile -Command "[uri]::EscapeDataString($env:DEVICE_ID)"`) do set "device_id_encoded=%%U"
-  exit /b 0
+  "%powershell_exe%" -NoProfile -Command "[uri]::EscapeDataString($env:DEVICE_ID)" > "%TEMP%\playr_device_id_encoded.txt" 2>nul
+  if exist "%TEMP%\playr_device_id_encoded.txt" (
+    for /f "usebackq delims=" %%U in ("%TEMP%\playr_device_id_encoded.txt") do set "device_id_encoded=%%U"
+    del "%TEMP%\playr_device_id_encoded.txt" /Q >nul 2>nul
+    exit /b 0
+  )
 )
 :: Fallback when PowerShell is unavailable: encode characters that break URL paths
 set "device_id_encoded=%device_id%"
@@ -369,13 +385,23 @@ echo WScript.Quit 0
 exit /b 0
 
 :PREPARE_PLAYR_PROFILE
+:: Never touch the profile of a running browser: deleting Singleton* locks or rewriting
+:: Preferences under a live Chrome/Edge disrupts it (and can look like a random shutdown).
+:: Only clean locks / patch Preferences when the browser is confirmed NOT running.
+call :IS_PLAYR_BROWSER_RUNNING
+if "%playr_browser_running%"=="1" (
+  echo %date% %time% Playr browser already running; skipping profile lock cleanup / Preferences patch>> "%playr_log%"
+  exit /b 0
+)
 echo %date% %time% Preparing Playr profile before launch>> "%playr_log%"
+:: Quote the path (%%~F strips quotes): %playr_profile_dir% lives under %LOCALAPPDATA%,
+:: which contains the account name and may include spaces or other special characters.
 for %%F in (
   "%playr_profile_dir%\SingletonLock"
   "%playr_profile_dir%\SingletonCookie"
   "%playr_profile_dir%\SingletonSocket"
 ) do (
-  if exist %%~F del %%~F /Q >nul 2>nul
+  if exist "%%~F" del "%%~F" /Q >nul 2>nul
 )
 call :PATCH_PLAYR_PROFILE_PREFERENCES
 exit /b 0
