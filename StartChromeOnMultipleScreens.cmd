@@ -225,7 +225,7 @@ if errorlevel 1 (
 )
 echo %date% %time% Watchdog: browser check every %watchdog_browser_check_interval_in_sec%s>> "%playr_log%"
 :: first wait for the player to start properly
-timeout /nobreak /t %watchdog_remote_poll_interval_in_sec%
+timeout /nobreak /t %watchdog_browser_check_interval_in_sec%
 
 if "%watchdog_remote_enabled%"=="0" goto BROWSER_WATCHDOG_LOOP
 
@@ -262,12 +262,28 @@ if "%reboot_command%"=="%watchdog_response%" (
   exit /b 0
 )
 call :RESTART_BROWSERS_IF_NEEDED
+call :REASSERT_PLAYR_BROWSER_TOPMOST
 echo %date% %time% Continuing watchdog (last server response: %watchdog_response%)>> "%playr_log%"
-timeout /nobreak /t %watchdog_remote_poll_interval_in_sec%
-goto WATCHDOG_LOOP
+:: Sleep until the next remote poll, but re-check the browsers and re-assert the full-screen
+:: windows every browser-check interval so a Windows 11 taskbar pop-up is corrected within
+:: seconds instead of only once per (much longer) remote poll interval.
+set /a "watchdog_remaining=%watchdog_remote_poll_interval_in_sec%"
+:WATCHDOG_REMOTE_WAIT
+if !watchdog_remaining! leq 0 goto WATCHDOG_LOOP
+if !watchdog_remaining! lss %watchdog_browser_check_interval_in_sec% (
+  timeout /nobreak /t !watchdog_remaining!
+  set "watchdog_remaining=0"
+) else (
+  timeout /nobreak /t %watchdog_browser_check_interval_in_sec%
+  set /a "watchdog_remaining-=%watchdog_browser_check_interval_in_sec%"
+)
+call :RESTART_BROWSERS_IF_NEEDED
+call :REASSERT_PLAYR_BROWSER_TOPMOST
+goto WATCHDOG_REMOTE_WAIT
 
 :BROWSER_WATCHDOG_LOOP
 call :RESTART_BROWSERS_IF_NEEDED
+call :REASSERT_PLAYR_BROWSER_TOPMOST
 timeout /nobreak /t %watchdog_browser_check_interval_in_sec%
 goto BROWSER_WATCHDOG_LOOP
 
@@ -443,6 +459,21 @@ call :COUNT_PLAYR_BROWSER_INSTANCES
 if !playr_browser_instance_count! geq 3 exit /b 0
 echo %date% %time% WARNING: expected 3 Playr browser instances (profile %playr_profile_dir%), found !playr_browser_instance_count!; restarting all screens>> "%playr_log%"
 call :LAUNCH_PLAYR_BROWSERS
+exit /b 0
+
+:REASSERT_PLAYR_BROWSER_TOPMOST
+:: Windows 11's rewritten taskbar intermittently draws itself on top of full-screen
+:: (kiosk / --app) windows even though the browsers never actually left full screen.
+:: Re-set every Playr browser window to TOPMOST (the same z-order band the taskbar uses,
+:: re-inserting us above it) with SWP_NOMOVE^|SWP_NOSIZE^|SWP_NOACTIVATE (0x13) so we do
+:: not move, resize or steal focus. Matching on the dedicated profile dir leaves any
+:: unrelated browser windows alone. This is a backstop; the durable fix is a shell-less
+:: kiosk (Shell Launcher). No-op when PowerShell is unavailable.
+call :RESOLVE_POWERSHELL_EXE
+if not defined powershell_exe exit /b 0
+set "PLAYR_PROFILE_DIR=%playr_profile_dir%"
+set "BROWSER_PROCESS=%browser_process_name%"
+"%powershell_exe%" -NoProfile -Command "$ErrorActionPreference='SilentlyContinue'; $q=[char]34; $sig='[DllImport('+$q+'user32.dll'+$q+')] public static extern bool SetWindowPos(IntPtr h,IntPtr a,int x,int y,int cx,int cy,uint f);'; $t=Add-Type -MemberDefinition $sig -Name PlayrWin -Namespace Playr -PassThru; $p=$env:PLAYR_PROFILE_DIR; $n=$env:BROWSER_PROCESS; Get-WmiObject Win32_Process -Filter ('Name='''+$n+'''') | Where-Object { $_.CommandLine -and $_.CommandLine.Contains($p) } | ForEach-Object { $pr=Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue; if($pr -and $pr.MainWindowHandle -ne 0){ [Playr.PlayrWin]::SetWindowPos($pr.MainWindowHandle,([IntPtr]-1),0,0,0,0,0x13) | Out-Null } }" >nul 2>nul
 exit /b 0
 
 :COUNT_PLAYR_BROWSER_INSTANCES

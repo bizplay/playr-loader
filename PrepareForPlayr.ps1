@@ -317,6 +317,20 @@ if ($continue) {
     } else {
         Write-Host "=> Turning on automatic Windows updates was NOT successful ($LASTEXITCODE/$?), please set Windows updates to automatic manually" -Fore Red
     }
+
+    ###############################################################################
+    #
+    # Prevent the Windows 11 taskbar from appearing over full-screen playback
+    # (disables Widgets/notifications, restores the focus-steal guard, auto-hides
+    # the taskbar). See PreventTaskbarOverlay.ps1 for details.
+    #
+    ###############################################################################
+    $taskbarScript = Join-Path $PSScriptRoot "PreventTaskbarOverlay.ps1"
+    if (Test-Path -Path $taskbarScript -PathType Leaf) {
+        & $taskbarScript
+    } else {
+        Write-Host "=> PreventTaskbarOverlay.ps1 not found next to this script; skipping taskbar hardening" -Fore Yellow
+    }
 }
 ###############################################################################
 #
