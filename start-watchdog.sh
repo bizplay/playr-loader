@@ -46,17 +46,17 @@ COLOR_GREEN='\033[0;32m'  # Green
 
 # Use this to write informative log messages to the terminal
 log_info() {
-    echo -e "[INFO]  - $(date +%F-%T) - $COLOR_BLUE${1}$COLOR_OFF" >> $log_file_name
+  echo -e "[INFO]  - $(date +%F-%T) - $COLOR_BLUE${1}$COLOR_OFF" >> $log_file_name
 }
 
 # Use this to write warning messages to the terminal
 log_warning() {
-    echo -e "[WARN]  - $(date +%F-%T) - $COLOR_YELLOW${1}$COLOR_OFF" >> $log_file_name
+  echo -e "[WARN]  - $(date +%F-%T) - $COLOR_YELLOW${1}$COLOR_OFF" >> $log_file_name
 }
 
 # Use this to write error messages to the terminal
 log_error() {
-    echo -e "[ERROR] - $(date +%F-%T) - $COLOR_RED${1}$COLOR_OFF" >> $log_file_name
+  echo -e "[ERROR] - $(date +%F-%T) - $COLOR_RED${1}$COLOR_OFF" >> $log_file_name
 }
 
 # Function that checks a server for a restart signal
@@ -67,65 +67,65 @@ log_error() {
 # return_value_no_restart is returned to minimize the risk of an
 # unintended restart
 request_restart_signal() {
-    local result="$(curl --silent "$server_url")"
-    local result_without_spaces=${result// /}
-    log_info "received command from server: $result_without_spaces"
-    # use simple matches since this script should be
-    # compatible with the ash whell (busybox)
-    if [[ -z $result_without_spaces ]]; then
-        echo $return_value_no_restart
-    elif [[ "$result_without_spaces" == "$return_value_no_restart" ]]; then
-        echo $return_value_no_restart
-    elif [[ "$result_without_spaces" == "$return_value_restart" ]]; then
-        echo $return_value_restart
-    else
-        echo $return_value_no_restart
-    fi
+  local result="$(curl --silent "$server_url")"
+  local result_without_spaces=${result// /}
+  log_info "received command from server: $result_without_spaces"
+  # use simple matches since this script should be
+  # compatible with the ash whell (busybox)
+  if [[ -z $result_without_spaces ]]; then
+    echo $return_value_no_restart
+  elif [[ "$result_without_spaces" == "$return_value_no_restart" ]]; then
+    echo $return_value_no_restart
+  elif [[ "$result_without_spaces" == "$return_value_restart" ]]; then
+    echo $return_value_restart
+  else
+    echo $return_value_no_restart
+  fi
 }
 
 # reboot the computer for linux systems
 reboot_machine_linux() {
-    sync
-    log_info "sync returned: $?"
-    # if raspberry pi allow passwordless sudo shutdown else do normal shutdown
-    if cat /proc/cpuinfo | grep "Raspberry Pi" &>/dev/null; then
-        sudo shutdown --reboot now
-    else
-        shutdown --reboot now
-    fi
-    log_info "reboot returned: $?"
+  sync
+  log_info "sync returned: $?"
+  # if raspberry pi allow passwordless sudo shutdown else do normal shutdown
+  if cat /proc/cpuinfo | grep "Raspberry Pi" &>/dev/null; then
+    sudo shutdown --reboot now
+  else
+    shutdown --reboot now
+  fi
+  log_info "reboot returned: $?"
 }
 
 # reboot the computer for osx systems
 reboot_machine_osx() {
-    sync
-    log_info "sync returned: $?"
-    osascript -e 'tell app "System Events" to shut down'
-    log_info "reboot returned: $?"
+  sync
+  log_info "sync returned: $?"
+  osascript -e 'tell app "System Events" to shut down'
+  log_info "reboot returned: $?"
 }
 
 # Reboot machine
 # Check running OS to decide unix shutdown or OSX shutdown
 reboot_machine() {
-    log_info "start reboot, uname: $(uname)"
-    if [ "$(uname)" == "Darwin" ]; then
-        reboot_machine_osx
-    else
-        reboot_machine_linux
-    fi
+  log_info "start reboot, uname: $(uname)"
+  if [ "$(uname)" == "Darwin" ]; then
+    reboot_machine_osx
+  else
+    reboot_machine_linux
+  fi
 }
 
 start_watchdog() {
-    #sleep before sending out first request allow the browser to be fully booted
-    sleep $initial_delay
-    while true; do
-        log_info "sending request to $server_url"
-        if [ "$(request_restart_signal)" -eq "$return_value_restart" ]; then
-            log_warning "received reboot command: restarting machine"
-            $(reboot_machine)
-        fi
-        sleep $server_check_interval
-    done
+  #sleep before sending out first request allow the browser to be fully booted
+  sleep $initial_delay
+  while true; do
+    log_info "sending request to $server_url"
+    if [ "$(request_restart_signal)" -eq "$return_value_restart" ]; then
+      log_warning "received reboot command: restarting machine"
+      $(reboot_machine)
+    fi
+    sleep $server_check_interval
+  done
 }
 
 ##########################################################################
@@ -134,7 +134,7 @@ start_watchdog() {
 # remove existing log file (simplest way to keep the size
 # of the log file to a minimum)
 if [[ -f $log_file_name ]]; then
-    rm $log_file_name
+  rm $log_file_name
 fi
 log_info "##########################################################################"
 log_info "###                                                                    ###"
@@ -144,14 +144,14 @@ log_info "######################################################################
 
 log_info "check if system_uuid is present"
 if [[ -z $system_uuid ]]; then
-    log_error "machine_id is not defined!"
-    exit 1
+  log_error "machine_id is not defined!"
+  exit 1
 fi
 
 log_info "check if curl is installed"
 if ! which curl >/dev/null; then
-    log_error "curl not installed on this system, please install curl"
-    exit 1
+  log_error "curl not installed on this system, please install curl"
+  exit 1
 fi
 
 log_info "starting watchdog loop for device $COLOR_GREEN${system_uuid}$COLOR_OFF"
