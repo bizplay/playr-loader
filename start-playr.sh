@@ -102,7 +102,7 @@ get_system_uuid() {
 # Get installed browser detected on a linux system using executable detection in PATH
 get_installed_browser_linux() {
   # List of supported browsers
-  supported_browsers=("google-chrome" "chromium-browser" "firefox")
+  supported_browsers=("google-chrome" "chromium-browser" "chromium" "firefox")
 
   # Iterate through the list of browsers
   for browser in "${supported_browsers[@]}"; do
@@ -160,6 +160,7 @@ update_browser_preferences() {
 
   chromium_browser_darwin_pref_file="$HOME/Library/Application Support/Chromium/Default/Preferences"
   chromium_browser_linux_pref_file="$HOME/.config/chromium/Default/Preferences"
+  chromium_linux_pref_file="$HOME/.config/chromium/Default/Preferences"
 
   firefox_darwin_pref_file="$HOME/Library/Application Support/Firefox/Profiles/*.default/prefs.js"
   firefox_linux_pref_file="$HOME/.mozilla/firefox/*.default/prefs.js"
@@ -184,6 +185,33 @@ update_browser_preferences() {
   else
     echo "Error: Could not find preference file at $pref_file for $browser"
   fi
+}
+
+# Current output resolution as WIDTHxHEIGHT (Wayland/DRM first, xrandr as fallback)
+get_primary_resolution() {
+  local mode=""
+  local mode_file
+
+  if command -v wlr-randr >/dev/null 2>&1; then
+    mode=$(wlr-randr 2>/dev/null | awk '/current/ {print $1; exit}')
+  fi
+
+  if [ -z "$mode" ]; then
+    for mode_file in /sys/class/drm/card*-HDMI-A-1/modes /sys/class/drm/card*-HDMI-A-2/modes /sys/class/drm/card*-*/modes; do
+      if [ -r "$mode_file" ]; then
+        mode=$(head -n1 "$mode_file")
+        if [ -n "$mode" ]; then
+          break
+        fi
+      fi
+    done
+  fi
+
+  if [ -z "$mode" ] && command -v xrandr >/dev/null 2>&1; then
+    mode=$(xrandr -q 2>/dev/null | awk '/\*/ {print $1; exit}')
+  fi
+
+  echo "$mode"
 }
 
 get_playr_channel() {
@@ -220,28 +248,39 @@ open_playr() {
 
   # Define the command line options for starting browser
   # gpu_options="--ignore-gpu-blocklist --enable-experimental-canvas-features --enable-gpu-rasterization --enable-threaded-gpu-rasterization"
-  gpu_options="--ignore-gpu-blocklist"
+  if [ "$(uname -m)" == "aarch64" ]; then
+    gpu_options=""
+  else
+    gpu_options="--ignore-gpu-blocklist"
+  fi
   persistency_options=""
   # --disable-session-crashed-bubble has been deprecated since v57 at the latest
   no_nagging_options="--simulate-outdated-no-au='Tue, 31 Dec 2099 23:59:59 GMT' --disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --disable-first-run-ui --no-default-browser-check --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-search-engine-choice-screen --use-fake-device-for-media-stream --auto-accept-camera-and-microphone-capture"
+  wayland_options=""
+  if [ -n "${WAYLAND_DISPLAY:-}" ]; then
+    wayland_options="--ozone-platform=wayland"
+  fi
   # On Raspberry Pi use a scaling factor of 2 when the screen resolution is set to 4K
   # (assuming 4K is identified by a horizontal or vertical resolution greater than 1920)
   scaling_options=""
   if [ "$(uname -m)" == "aarch64" ]; then
-    horizontal=$(xrandr -q | awk -vi=0 '/\*/ {i++; if (i==1) print $1}' | cut -d'x' -f 1)
-    vertical=$(xrandr -q | awk -vi=0 '/\*/ {i++; if (i==1) print $1}' | cut -d'x' -f 2)
-    if [ "$horizontal" -gt "$vertical" ]]; then
-      if [ "$horizontal" -gt "1920" ]; then
-        scaling_options="--force-device-scale-factor=2"
-      fi
-    else
-      if [ "$vertical" -gt "1920" ]; then
-        scaling_options="--force-device-scale-factor=2"
+    resolution=$(get_primary_resolution)
+    horizontal=$(echo "$resolution" | cut -d'x' -f 1)
+    vertical=$(echo "$resolution" | cut -d'x' -f 2)
+    if [[ "$horizontal" =~ ^[0-9]+$ && "$vertical" =~ ^[0-9]+$ ]]; then
+      if [ "$horizontal" -gt "$vertical" ]; then
+        if [ "$horizontal" -gt "1920" ]; then
+          scaling_options="--force-device-scale-factor=2"
+        fi
+      else
+        if [ "$vertical" -gt "1920" ]; then
+          scaling_options="--force-device-scale-factor=2"
+        fi
       fi
     fi
   fi
 
-  browser_startup="${gpu_options} ${persistency_options} ${no_nagging_options} ${scaling_options} --kiosk --app=file://${playr_loader_file}?channel=${channel}&reload_url=${reload_url}&watchdog_id=${uuid}&player_id=${uuid}"
+  browser_startup="${gpu_options} ${persistency_options} ${no_nagging_options} ${scaling_options} ${wayland_options} --kiosk --app=file://${playr_loader_file}?channel=${channel}&reload_url=${reload_url}&watchdog_id=${uuid}&player_id=${uuid}"
   log_info "this is the startup :: $browser_startup"
 
   # overwrite startup if it's a firefox browser
