@@ -255,7 +255,12 @@ open_playr() {
   fi
   persistency_options=""
   # --disable-session-crashed-bubble has been deprecated since v57 at the latest
-  no_nagging_options="--simulate-outdated-no-au='Tue, 31 Dec 2099 23:59:59 GMT' --disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --disable-first-run-ui --no-default-browser-check --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-search-engine-choice-screen --use-fake-device-for-media-stream --auto-accept-camera-and-microphone-capture"
+  if [ "$(uname -m)" == "aarch64" ]; then
+    # to prevent new keyring dialog on Raspberry PiOS: --password-store=basic --disable-features=DbusSecretPortal  
+    no_nagging_options="--simulate-outdated-no-au='Tue, 31 Dec 2099 23:59:59 GMT' --disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --disable-first-run-ui --no-default-browser-check --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-search-engine-choice-screen --use-fake-device-for-media-stream --auto-accept-camera-and-microphone-capture --password-store=basic --disable-features=DbusSecretPortal"
+  else
+    no_nagging_options="--simulate-outdated-no-au='Tue, 31 Dec 2099 23:59:59 GMT' --disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --disable-first-run-ui --no-default-browser-check --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-search-engine-choice-screen --use-fake-device-for-media-stream --auto-accept-camera-and-microphone-capture"
+  fi
   wayland_options=""
   if [ -n "${WAYLAND_DISPLAY:-}" ]; then
     wayland_options="--ozone-platform=wayland"
