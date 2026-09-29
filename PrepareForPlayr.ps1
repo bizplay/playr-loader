@@ -22,6 +22,40 @@
 ###############################################################################
 ###############################################################################
 
+###############################################################################
+#
+# Auto-elevation (run as Administrator)
+#
+# This script (and especially the PreventTaskbarOverlay.ps1 script it calls) writes
+# machine-wide settings under HKLM - for example disabling Windows 11 Widgets via
+# HKLM\SOFTWARE\Policies\Microsoft\Dsh. Those writes require Administrator rights;
+# without elevation they fail with "PermissionDenied / UnauthorizedAccessException"
+# and the taskbar hardening is only partially applied. To guarantee successful
+# execution of PreventTaskbarOverlay.ps1, relaunch this script elevated if it is not
+# already running as Administrator.
+#
+###############################################################################
+$isElevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $isElevated) {
+    Write-Host "Not running as Administrator - relaunching this script elevated (required for PreventTaskbarOverlay.ps1)..." -Fore Yellow
+    try {
+        $scriptPath = $MyInvocation.MyCommand.Definition
+        $psExe = (Get-Process -Id $PID).Path
+        if (-not $psExe) { $psExe = "powershell.exe" }
+        Start-Process -FilePath $psExe -Verb RunAs -ArgumentList @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", "`"$scriptPath`""
+        )
+    }
+    catch {
+        Write-Host "=> Elevation was cancelled or failed: $($_.Exception.Message)" -Fore Red
+        Write-Host "   Please re-run this script by right-clicking it and choosing 'Run as administrator'." -Fore Red
+    }
+    # Exit the non-elevated instance; the elevated instance (if approved) continues the work.
+    exit
+}
+
 # Steps to prepare for digital signage playback
 # v Update third party drivers
 # v Set Windows update to automatic

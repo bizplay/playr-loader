@@ -42,6 +42,11 @@
 # account that runs this script - run it as the signage playback account.
 # The keys are harmless on Windows 10 (ignored where not applicable).
 
+# Are we running elevated? Machine-wide (HKLM) writes require Administrator; per-user
+# (HKCU) writes do not. Detect this once so HKLM changes can be skipped cleanly instead
+# of throwing an UnauthorizedAccessException.
+$script:IsElevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
 function Set-PlayrRegistryValue {
     param(
         [Parameter(Mandatory = $true)] [string] $Path,
@@ -49,11 +54,20 @@ function Set-PlayrRegistryValue {
         [Parameter(Mandatory = $true)] $Value,
         [ValidateSet('DWord', 'String')] [string] $Type = 'DWord'
     )
+    # HKLM changes are machine-wide and need elevation. When not running as Administrator,
+    # skip them with a clear message rather than letting New-ItemProperty throw a
+    # PermissionDenied / UnauthorizedAccessException to the console.
+    if (($Path -like 'HKLM:*') -and (-not $script:IsElevated)) {
+        Write-Host "=> SKIPPED $Path\$Name (requires Administrator)" -Fore Yellow
+        return $false
+    }
     try {
         if (-not (Test-Path -Path $Path)) {
-            New-Item -Path $Path -Force | Out-Null
+            # -ErrorAction Stop is required so a non-terminating error (e.g. access
+            # denied) is turned into a terminating one that the catch block handles.
+            New-Item -Path $Path -Force -ErrorAction Stop | Out-Null
         }
-        New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType $Type -Force | Out-Null
+        New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType $Type -Force -ErrorAction Stop | Out-Null
         Write-Host "=> Set $Path\$Name = $Value" -Fore Green
         return $true
     }
@@ -64,6 +78,11 @@ function Set-PlayrRegistryValue {
 }
 
 Write-Host "Hardening the Windows 11 taskbar so it stays hidden behind full-screen playback:"
+if (-not $script:IsElevated) {
+    Write-Host "=> NOTE: not running as Administrator - machine-wide (HKLM) settings such as fully" -Fore Yellow
+    Write-Host "         disabling Widgets will be skipped. Per-user settings will still be applied." -Fore Yellow
+    Write-Host "         Re-run PrepareForPlayr.ps1 as Administrator to apply the machine-wide settings." -Fore Yellow
+}
 
 ###############################################################################
 #
