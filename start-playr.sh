@@ -34,15 +34,17 @@ COLOR_GREEN='\033[0;32m'  # Green
 
 # path used to determine other script/html locations
 execution_path=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
 # The path to the page that will check internet connection
 # before loading the actual signage channel
 # NOTE: check the location of the player_loader.html in the following line
 playr_loader_file="${execution_path}/playr_loader.html"
+# The default path to the log file
+log_file_name=${start_playr_log_file_name:-"/var/log/start_playr.log"}
 
-##########################################################################
-#							   METHODS     								 #
-##########################################################################
+# Use this to write informative log messages to the log file
+log_to_file() {
+  echo -e "$(date +%F-%T) - ${1}" >> $log_file_name
+}
 
 # Use this to write informative log messages to the terminal
 log_info() {
@@ -57,6 +59,55 @@ log_warning() {
 # Use this to write error messages to the terminal
 log_error() {
   echo -e "[ERROR] - $(date +%F-%T) - $COLOR_RED${1}$COLOR_OFF"
+}
+
+# Determine a writable location for the log file.
+# Preference order:
+#   1. the configured/default location (start_playr_log_file_name, default /var/log/...)
+#   2. ~/log/<logfile>  (directory created if needed) when the first is not writable
+#   3. /tmp/<logfile>   (last resort so logging keeps working)
+# Sets the global log_file_name and records whether it had to fall back.
+log_file_fallback_reason=""
+resolve_log_file() {
+  # touch succeeds when the file is writable or can be created in its directory,
+  # so it doubles as a "can we write here?" test for the target location.
+  if touch "$log_file_name" 2>/dev/null; then
+    return 0
+  fi
+  log_file_fallback_reason="cannot write to $log_file_name"
+
+  local log_base
+  log_base=$(basename "$log_file_name")
+
+  local fallback_dir="$HOME/log"
+  local fallback_file="$fallback_dir/$log_base"
+  if mkdir -p "$fallback_dir" 2>/dev/null && touch "$fallback_file" 2>/dev/null; then
+    log_file_name="$fallback_file"
+    return 0
+  fi
+
+  # Last resort so logging keeps working
+  local tmp_file="/tmp/$log_base"
+  if touch "$tmp_file" 2>/dev/null; then
+    log_file_name="$tmp_file"
+    return 0
+  fi
+
+  return 1
+}
+
+# Keep the log from growing without bound: once it passes 1 MB, delete it and
+# start a fresh file instead of appending forever. Uses wc -c for portability
+# (stat's size flags differ between Linux/busybox and macOS/BSD).
+rotate_log_if_needed() {
+  local max_size=1048576 # 1 MB
+  if [[ -f "$log_file_name" ]]; then
+    local size
+    size=$(wc -c < "$log_file_name" 2>/dev/null | tr -d '[:space:]')
+    if [[ -n "$size" ]] && [[ "$size" -gt "$max_size" ]]; then
+      rm -f "$log_file_name"
+    fi
+  fi
 }
 
 # parse mac address from the ip link command
@@ -246,6 +297,10 @@ open_playr() {
   uuid=$3
   reload_url=$4
 
+  log_to_file "using browser    :: $browser"
+  log_to_file "using channel    :: $channel"
+  log_to_file "using uuid       :: $uuid"
+  log_to_file "using reload_url :: $reload_url"
   # Define the command line options for starting browser
   # gpu_options="--ignore-gpu-blocklist --enable-experimental-canvas-features --enable-gpu-rasterization --enable-threaded-gpu-rasterization"
   if [ "$(uname -m)" == "aarch64" ]; then
@@ -263,6 +318,7 @@ open_playr() {
   fi
   wayland_options=""
   if [ -n "${WAYLAND_DISPLAY:-}" ]; then
+    log_to_file "Wayland detected"
     wayland_options="--ozone-platform=wayland"
   fi
   # On Raspberry Pi use a scaling factor of 2 when the screen resolution is set to 4K
@@ -276,24 +332,30 @@ open_playr() {
       if [ "$horizontal" -gt "$vertical" ]; then
         if [ "$horizontal" -gt "1920" ]; then
           scaling_options="--force-device-scale-factor=2"
+          log_to_file "4K detected, setting scaling options to 2"
         fi
       else
         if [ "$vertical" -gt "1920" ]; then
           scaling_options="--force-device-scale-factor=2"
+          log_to_file "4K detected, setting scaling options to 2"
         fi
       fi
+    else
+      log_to_file "resolution is not a number"
     fi
   fi
 
   browser_startup="${gpu_options} ${persistency_options} ${no_nagging_options} ${scaling_options} ${wayland_options} --kiosk --app=file://${playr_loader_file}?channel=${channel}&reload_url=${reload_url}&watchdog_id=${uuid}&player_id=${uuid}"
   log_info "this is the startup :: $browser_startup"
+  log_to_file "this is the startup :: $browser_startup"
 
   # overwrite startup if it's a firefox browser
   lowercase_path=$(echo "$browser" | tr '[:upper:]' '[:lower:]')
   if [[ "${lowercase_path}" =~ .*firefox.* ]]; then
     browser_startup="--kiosk file://${playr_loader_file}?channel=${channel}&reload_url=${reload_url}&watchdog_id=${uuid}&player_id=${uuid}"
+    log_warning "this is the FF startup :: $browser_startup"
+    log_to_file "this is the FF startup :: $browser_startup"
   fi
-  log_info "this is the startup :: $browser_startup"
 
   if [ "$(uname)" == "Darwin" ]; then
     open -a "$browser" --args $browser_startup
@@ -302,10 +364,20 @@ open_playr() {
   fi
 }
 
+# Pick a writable log location (falls back from /var/log to ~/log to /tmp) and
+# rotate the log up front so a large file from a previous run is not kept.
+resolve_log_file
+rotate_log_if_needed
+log_info "logging to $log_file_name"
+if [[ -n $log_file_fallback_reason ]]; then
+  log_warning "using fallback log location ($log_file_fallback_reason)"
+fi
+
 # Get installed browser name and path
 result=$(get_installed_browser)
 if [[ $result == Error* ]]; then
   log_error "${result}"
+  log_to_file "error: ${result}"
   exit 1
 else
   log_info "Found browser: $result"
@@ -320,6 +392,7 @@ found_browser_path=$(echo ${arr[1]} | sed -e 's/^[[:space:]]*//')
 output=$(update_browser_preferences ${found_browser})
 if [[ $output == Error* ]]; then
   log_warning "${output}"
+  log_to_file "warning: ${output}"
 else
   log_info "${output}"
 fi
@@ -333,3 +406,6 @@ open_playr "${found_browser_path}" "${channel}" "${system_uuid}" "${reload_url}"
 
 # # start the watchdog
 ${execution_path}/start-watchdog.sh $system_uuid
+log_info "started watchdog"
+log_to_file "started watchdog"
+exit 0
