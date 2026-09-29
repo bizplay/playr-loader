@@ -136,7 +136,7 @@ get_system_uuid() {
     # get platform serial number, parse and strip quotes
     result=$(ioreg -rd1 -c IOPlatformExpertDevice | awk '/IOPlatformSerialNumber/' | grep -o -E '("\w+")$' | sed -E 's/"//g')
   elif cat /proc/cpuinfo | grep "Raspberry Pi" &>/dev/null; then
-    result=$(cat /sys/firmware/devicetree/base/serial-number)
+    result=$(tr -d '\0' < /sys/firmware/devicetree/base/serial-number)
   else
     result=$(get_first_hardware_mac)
   fi
