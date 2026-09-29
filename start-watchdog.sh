@@ -45,18 +45,69 @@ COLOR_GREEN='\033[0;32m'  # Green
 ##########################################################################
 
 # Use this to write informative log messages to the terminal
+log_to_terminal() {
+  echo -e "[INFO]  - $(date +%F-%T) - $COLOR_BLUE${1}$COLOR_OFF"
+}
+
+# Use this to write informative log messages to the log file
 log_info() {
-  echo -e "[INFO]  - $(date +%F-%T) - $COLOR_BLUE${1}$COLOR_OFF" >> $log_file_name
+  echo -e "[INFO]  - $(date +%F-%T) - ${1}" >> $log_file_name
 }
 
-# Use this to write warning messages to the terminal
+# Use this to write warning messages to the log file
 log_warning() {
-  echo -e "[WARN]  - $(date +%F-%T) - $COLOR_YELLOW${1}$COLOR_OFF" >> $log_file_name
+  echo -e "[WARN]  - $(date +%F-%T) - ${1}" >> $log_file_name
 }
 
-# Use this to write error messages to the terminal
+# Use this to write error messages to the log file
 log_error() {
-  echo -e "[ERROR] - $(date +%F-%T) - $COLOR_RED${1}$COLOR_OFF" >> $log_file_name
+  echo -e "[ERROR] - $(date +%F-%T) - ${1}" >> $log_file_name
+}
+
+# Determine a writable location for the log file.
+# Preference order:
+#   1. the configured/default location (browser_watchdog_log_file_name, default /var/log/...)
+#   2. ~/log/browser_watchdog.log  (directory created if needed) when the first is not writable
+#   3. /tmp/browser_watchdog.log   (last resort so the watchdog can still run and log)
+# Sets the global log_file_name and records whether it had to fall back.
+log_file_fallback_reason=""
+resolve_log_file() {
+  # touch succeeds when the file is writable or can be created in its directory,
+  # so it doubles as a "can we write here?" test for the target location.
+  if touch "$log_file_name" 2>/dev/null; then
+    return 0
+  fi
+  log_file_fallback_reason="cannot write to $log_file_name"
+
+  local fallback_dir="$HOME/log"
+  local fallback_file="$fallback_dir/browser_watchdog.log"
+  if mkdir -p "$fallback_dir" 2>/dev/null && touch "$fallback_file" 2>/dev/null; then
+    log_file_name="$fallback_file"
+    return 0
+  fi
+
+  # Last resort so logging (and the watchdog) keep working
+  local tmp_file="/tmp/browser_watchdog.log"
+  if touch "$tmp_file" 2>/dev/null; then
+    log_file_name="$tmp_file"
+    return 0
+  fi
+
+  return 1
+}
+
+# Keep the log from growing without bound: once it passes 1 MB, delete it and
+# start a fresh file instead of appending forever. Uses wc -c for portability
+# (stat's size flags differ between Linux/busybox and macOS/BSD).
+rotate_log_if_needed() {
+  local max_size=1048576 # 1 MB
+  if [[ -f "$log_file_name" ]]; then
+    local size
+    size=$(wc -c < "$log_file_name" 2>/dev/null | tr -d '[:space:]')
+    if [[ -n "$size" ]] && [[ "$size" -gt "$max_size" ]]; then
+      rm -f "$log_file_name"
+    fi
+  fi
 }
 
 # Function that checks a server for a restart signal
@@ -119,6 +170,7 @@ start_watchdog() {
   #sleep before sending out first request allow the browser to be fully booted
   sleep $initial_delay
   while true; do
+    rotate_log_if_needed
     log_info "sending request to $server_url"
     if [ "$(request_restart_signal)" -eq "$return_value_restart" ]; then
       log_warning "received reboot command: restarting machine"
@@ -131,10 +183,13 @@ start_watchdog() {
 ##########################################################################
 ###                          EXECUTION                                 ###
 ##########################################################################
-# remove existing log file (simplest way to keep the size
-# of the log file to a minimum)
-if [[ -f $log_file_name ]]; then
-  rm $log_file_name
+# Pick a writable log location (falls back from /var/log to ~/log to /tmp) and
+# rotate the log up front so a large file from a previous run is not kept.
+resolve_log_file
+rotate_log_if_needed
+log_to_terminal "logging to $log_file_name"
+if [[ -n $log_file_fallback_reason ]]; then
+  log_to_terminal "using fallback log location ($log_file_fallback_reason)"
 fi
 log_info "##########################################################################"
 log_info "###                                                                    ###"
