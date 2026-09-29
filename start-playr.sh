@@ -265,6 +265,57 @@ get_primary_resolution() {
   echo "$mode"
 }
 
+# On Wayland, scale the output instead of passing --force-device-scale-factor.
+# labwc sizes a fullscreen window in logical pixels from its own output scale.
+# Chromium's --force-device-scale-factor overrides that scale, so the surface
+# no longer matches the fullscreen configure and Chromium leaves kiosk mode.
+# Setting the compositor scale keeps kiosk geometry and the 2x layout in agreement.
+# Only outputs currently above Full HD and not already scaled are changed.
+apply_wayland_output_scale() {
+  local scale="$1"
+  if ! command -v wlr-randr >/dev/null 2>&1; then
+    log_to_file "wlr-randr not found; Wayland output scale not applied"
+    log_warning "wlr-randr not found; 4K content will be unscaled so kiosk mode can stay fullscreen"
+    return 1
+  fi
+
+  local outputs
+  outputs=$(wlr-randr 2>/dev/null | awk '
+    /^[^[:space:]]/ {
+      if (name != "" && enabled && big && scale + 0 < 1.5) print name
+      name = $1
+      enabled = 0
+      big = 0
+      scale = 1
+    }
+    /Enabled: yes/ { enabled = 1 }
+    /\(current\)/ && enabled {
+      if (match($0, /[0-9]+x[0-9]+/)) {
+        split(substr($0, RSTART, RLENGTH), dims, "x")
+        if (dims[1] + 0 > 1920 || dims[2] + 0 > 1920) big = 1
+      }
+    }
+    /^[[:space:]]*Scale:/ { scale = $2 }
+    END {
+      if (name != "" && enabled && big && scale + 0 < 1.5) print name
+    }
+  ')
+
+  if [ -z "$outputs" ]; then
+    log_to_file "Wayland output already scaled or no >FullHD output found"
+    return 0
+  fi
+
+  local output
+  for output in $outputs; do
+    log_to_file "setting Wayland output $output scale to $scale"
+    if ! wlr-randr --output "$output" --scale "$scale"; then
+      log_to_file "wlr-randr failed for output $output"
+      log_warning "could not set scale $scale on Wayland output $output"
+    fi
+  done
+}
+
 get_playr_channel() {
   # The URL that will be played in the browser
   if [[ $1 == "" ]]; then
@@ -321,23 +372,38 @@ open_playr() {
     log_to_file "Wayland detected"
     wayland_options="--ozone-platform=wayland"
   fi
-  # On Raspberry Pi use a scaling factor of 2 when the screen resolution is set to 4K
-  # (assuming 4K is identified by a horizontal or vertical resolution greater than 1920)
+  # On Raspberry Pi use a scaling factor of 2 when the screen resolution is
+  # higher than Full HD (a horizontal or vertical resolution greater than 1920).
+  #
+  # X11 (Raspberry Pi OS Bookworm): --force-device-scale-factor only changes
+  # Chromium's layout scale. The window manager still forces the kiosk window
+  # to the monitor size, so fullscreen is unaffected.
+  #
+  # Wayland/labwc (Raspberry Pi OS Trixie): do not pass that flag. It overrides
+  # the scale labwc advertised, the fullscreen surface no longer matches, and
+  # Chromium drops out of kiosk mode. Scale the output instead.
   scaling_options=""
   if [ "$(uname -m)" == "aarch64" ]; then
     resolution=$(get_primary_resolution)
     horizontal=$(echo "$resolution" | cut -d'x' -f 1)
     vertical=$(echo "$resolution" | cut -d'x' -f 2)
     if [[ "$horizontal" =~ ^[0-9]+$ && "$vertical" =~ ^[0-9]+$ ]]; then
+      needs_hires_scale=0
       if [ "$horizontal" -gt "$vertical" ]; then
         if [ "$horizontal" -gt "1920" ]; then
-          scaling_options="--force-device-scale-factor=2"
-          log_to_file "4K detected, setting scaling options to 2"
+          needs_hires_scale=1
         fi
-      else
-        if [ "$vertical" -gt "1920" ]; then
+      elif [ "$vertical" -gt "1920" ]; then
+        needs_hires_scale=1
+      fi
+      if [ "$needs_hires_scale" = "1" ]; then
+        log_info "4K detected, setting scaling options to 2"
+        if [ -n "${WAYLAND_DISPLAY:-}" ]; then
+          log_to_file "4K on Wayland: scaling the output instead of --force-device-scale-factor"
+          apply_wayland_output_scale 2
+        else
           scaling_options="--force-device-scale-factor=2"
-          log_to_file "4K detected, setting scaling options to 2"
+          log_to_file "4K on X11: setting --force-device-scale-factor=2"
         fi
       fi
     else
@@ -372,6 +438,9 @@ log_info "logging to $log_file_name"
 if [[ -n $log_file_fallback_reason ]]; then
   log_warning "using fallback log location ($log_file_fallback_reason)"
 fi
+log_to_file "########################################################"
+log_to_file "###                starting playr                    ###"
+log_to_file "########################################################"
 
 # Get installed browser name and path
 result=$(get_installed_browser)
