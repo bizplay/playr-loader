@@ -37,23 +37,33 @@
 ###############################################################################
 $isElevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isElevated) {
-    Write-Host "Not running as Administrator - relaunching this script elevated (required for PreventTaskbarOverlay.ps1)..." -Fore Yellow
+    Write-Host "Not running as Administrator - trying to relaunch this script elevated (required for PreventTaskbarOverlay.ps1)..." -Fore Yellow
+    $relaunched = $false
     try {
         $scriptPath = $MyInvocation.MyCommand.Definition
         $psExe = (Get-Process -Id $PID).Path
         if (-not $psExe) { $psExe = "powershell.exe" }
+        # -ErrorAction Stop so a cancelled UAC prompt raises a catchable error
         Start-Process -FilePath $psExe -Verb RunAs -ArgumentList @(
             "-NoProfile",
             "-ExecutionPolicy", "Bypass",
             "-File", "`"$scriptPath`""
-        )
+        ) -ErrorAction Stop
+        $relaunched = $true
     }
     catch {
         Write-Host "=> Elevation was cancelled or failed: $($_.Exception.Message)" -Fore Red
-        Write-Host "   Please re-run this script by right-clicking it and choosing 'Run as administrator'." -Fore Red
+        Write-Host "   Continuing WITHOUT Administrator rights. Machine-wide (HKLM) settings" -Fore Yellow
+        Write-Host "   (e.g. fully disabling Widgets) will be skipped or may fail; everything" -Fore Yellow
+        Write-Host "   that does not require elevation will still be applied." -Fore Yellow
     }
-    # Exit the non-elevated instance; the elevated instance (if approved) continues the work.
-    exit
+    if ($relaunched) {
+        # The elevated instance (approved via UAC) will perform the full setup; exit this
+        # non-elevated instance so the work is not done twice.
+        exit
+    }
+    # Elevation declined/failed: fall through and run as much of the script as possible
+    # without Administrator rights.
 }
 
 # Steps to prepare for digital signage playback
