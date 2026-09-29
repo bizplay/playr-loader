@@ -47,6 +47,205 @@
 # of throwing an UnauthorizedAccessException.
 $script:IsElevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
+# Optional fallback: when an HKLM write is refused even though we are elevated (cause #2 -
+# a key whose ACL is locked to SYSTEM/TrustedInstaller), attempt to take ownership of the
+# key, grant Administrators FullControl and retry the write once. Set to $false to disable.
+$script:AttemptTakeOwnership = $true
+
+# Holds the last error record from Invoke-PlayrRegistryWrite so the caller can inspect it.
+$script:LastRegistryError = $null
+$script:PrivilegeHelperAdded = $false
+
+# Enable a named privilege (e.g. SeTakeOwnershipPrivilege) on the current process token.
+# Taking ownership of an ACL-locked registry key needs SeTakeOwnershipPrivilege (and
+# SeRestorePrivilege to rewrite the owner); both are held by admins but must be enabled.
+function Enable-PlayrPrivilege {
+    param([Parameter(Mandatory = $true)] [string] $Privilege)
+    if (-not $script:PrivilegeHelperAdded) {
+        $definition = @'
+using System;
+using System.Runtime.InteropServices;
+public class PlayrTokenPriv {
+    [DllImport("advapi32.dll", SetLastError=true)]
+    static extern bool OpenProcessToken(IntPtr h, int acc, out IntPtr phtok);
+    [DllImport("advapi32.dll", SetLastError=true)]
+    static extern bool LookupPrivilegeValue(string host, string name, out long pluid);
+    [DllImport("advapi32.dll", SetLastError=true)]
+    static extern bool AdjustTokenPrivileges(IntPtr htok, bool disall, ref TOKPRIV1LUID newst, int len, IntPtr prev, IntPtr relen);
+    [DllImport("kernel32.dll", SetLastError=true)]
+    static extern IntPtr GetCurrentProcess();
+    [StructLayout(LayoutKind.Sequential, Pack=1)]
+    struct TOKPRIV1LUID { public int Count; public long Luid; public int Attr; }
+    const int SE_PRIVILEGE_ENABLED = 0x00000002;
+    const int TOKEN_QUERY = 0x00000008;
+    const int TOKEN_ADJUST_PRIVILEGES = 0x00000020;
+    public static bool EnablePrivilege(string privilege) {
+        IntPtr htok;
+        if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, out htok)) return false;
+        TOKPRIV1LUID tp;
+        tp.Count = 1; tp.Attr = SE_PRIVILEGE_ENABLED; tp.Luid = 0;
+        if (!LookupPrivilegeValue(null, privilege, out tp.Luid)) return false;
+        return AdjustTokenPrivileges(htok, false, ref tp, 0, IntPtr.Zero, IntPtr.Zero);
+    }
+}
+'@
+        Add-Type -TypeDefinition $definition -ErrorAction Stop
+        $script:PrivilegeHelperAdded = $true
+    }
+    return [PlayrTokenPriv]::EnablePrivilege($Privilege)
+}
+
+# Walk up from $Path (HKLM:\...) and return the deepest key that actually exists.
+function Get-PlayrNearestExistingHklmKey {
+    param([Parameter(Mandatory = $true)] [string] $Path)
+    $p = $Path
+    while ($p -and ($p -match '\\')) {
+        if (Test-Path -Path $p) { return $p }
+        $p = Split-Path -Path $p -Parent
+    }
+    return $null
+}
+
+# The actual registry write. Stores any error in $script:LastRegistryError and returns
+# $true/$false instead of throwing, so callers can retry.
+function Invoke-PlayrRegistryWrite {
+    param(
+        [string] $Path, [string] $Name, $Value, [string] $Type
+    )
+    $script:LastRegistryError = $null
+    try {
+        if (-not (Test-Path -Path $Path)) {
+            # -ErrorAction Stop turns a non-terminating access-denied error into a
+            # terminating one so the catch block actually handles it.
+            New-Item -Path $Path -Force -ErrorAction Stop | Out-Null
+        }
+        New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType $Type -Force -ErrorAction Stop | Out-Null
+        return $true
+    }
+    catch {
+        $script:LastRegistryError = $_
+        return $false
+    }
+}
+
+# Explain WHY an HKLM write failed so support can tell cause #1 (not elevated) apart from
+# cause #2 (key ACL-locked to SYSTEM/TrustedInstaller) and cause #3 (managed by MDM/GPO).
+function Write-PlayrRegistryFailureDiagnosis {
+    param([string] $Path, $ErrorRecord)
+    $msg = if ($ErrorRecord) { $ErrorRecord.Exception.Message } else { 'unknown error' }
+    Write-Host "=> FAILED to write $Path" -Fore Red
+    Write-Host "   Error: $msg" -Fore Red
+
+    if (-not $script:IsElevated) {
+        Write-Host "   Diagnosis: CAUSE #1 - this PowerShell session is NOT elevated." -Fore Yellow
+        Write-Host "   'Run with PowerShell' from Explorer does NOT elevate; use 'Run as administrator'" -Fore Yellow
+        Write-Host "   (or let PrepareForPlayr.ps1 auto-elevate)." -Fore Yellow
+        return
+    }
+
+    Write-Host "   Diagnosis: the session IS elevated (Administrator), so this is NOT cause #1." -Fore Yellow
+    Write-Host "   => That means cause #2 (key ACL locked to SYSTEM/TrustedInstaller) or" -Fore Yellow
+    Write-Host "      cause #3 (the setting is managed by MDM / Group Policy)." -Fore Yellow
+
+    # Cause #2 evidence: owner and whether Administrators can write on the nearest key.
+    $nearest = Get-PlayrNearestExistingHklmKey -Path $Path
+    if ($nearest) {
+        try {
+            $acl = Get-Acl -Path $nearest -ErrorAction Stop
+            Write-Host "   Nearest existing key: $nearest" -Fore Yellow
+            Write-Host "   Owner: $($acl.Owner)" -Fore Yellow
+            $adminsCanWrite = $false
+            foreach ($ace in $acl.Access) {
+                if (($ace.AccessControlType -eq 'Allow') -and
+                    ("$($ace.IdentityReference)" -match 'Administrators|S-1-5-32-544') -and
+                    ("$($ace.RegistryRights)" -match 'FullControl|SetValue|CreateSubKey|WriteKey')) {
+                    $adminsCanWrite = $true
+                }
+            }
+            if ($adminsCanWrite) {
+                Write-Host "   Administrators DO have write rights here -> cause #2 unlikely; cause #3 (managed) more likely." -Fore Yellow
+            }
+            else {
+                Write-Host "   Administrators do NOT have write rights here -> consistent with cause #2 (ACL-locked key)." -Fore Yellow
+            }
+        }
+        catch {
+            Write-Host "   Could not read ACL of ${nearest}: $($_.Exception.Message)" -Fore Yellow
+        }
+    }
+
+    # Cause #3 evidence: is the device centrally managed?
+    $managedHint = @()
+    try {
+        if ((Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction Stop).PartOfDomain) {
+            $managedHint += 'domain-joined (Group Policy may manage this)'
+        }
+    }
+    catch { }
+    try {
+        if (Test-Path 'HKLM:\SOFTWARE\Microsoft\Enrollments') {
+            $enrolled = Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Enrollments' -ErrorAction SilentlyContinue |
+                ForEach-Object { Get-ItemProperty -Path $_.PSPath -ErrorAction SilentlyContinue } |
+                Where-Object { $_.UPN -or ($_.EnrollmentState -eq 1) }
+            if ($enrolled) { $managedHint += 'MDM-enrolled (Intune/CSP may manage this)' }
+        }
+    }
+    catch { }
+    if ($managedHint.Count -gt 0) {
+        Write-Host "   This device appears $([string]::Join(' and ', $managedHint))." -Fore Yellow
+        Write-Host "   If so, set the Widgets policy via Group Policy/Intune instead - local writes get reverted." -Fore Yellow
+    }
+}
+
+# Take ownership of the nearest existing ancestor of $Path and grant Administrators
+# FullControl (inherited), so a subsequent write/subkey-create can succeed. Returns
+# $true on success. This is the cause #2 remedy.
+function Repair-PlayrHklmKeyPermissions {
+    param([Parameter(Mandatory = $true)] [string] $Path)
+    $target = Get-PlayrNearestExistingHklmKey -Path $Path
+    if (-not $target) { return $false }
+    $subKey = $target -replace '^HKLM:\\', ''
+    try {
+        Enable-PlayrPrivilege 'SeTakeOwnershipPrivilege' | Out-Null
+        Enable-PlayrPrivilege 'SeRestorePrivilege' | Out-Null
+        $admins = New-Object System.Security.Principal.SecurityIdentifier(
+            [System.Security.Principal.WellKnownSidType]::BuiltinAdministratorsSid, $null)
+        $base = [Microsoft.Win32.Registry]::LocalMachine
+
+        # 1) become the owner (needed before we are allowed to change the DACL)
+        $key = $base.OpenSubKey($subKey,
+            [Microsoft.Win32.RegistryKeyPermissionCheck]::ReadWriteSubTree,
+            [System.Security.AccessControl.RegistryRights]::TakeOwnership)
+        if ($null -eq $key) { return $false }
+        $acl = $key.GetAccessControl([System.Security.AccessControl.AccessControlSections]::None)
+        $acl.SetOwner($admins)
+        $key.SetAccessControl($acl)
+        $key.Close()
+
+        # 2) grant Administrators FullControl, inherited by subkeys
+        $key = $base.OpenSubKey($subKey,
+            [Microsoft.Win32.RegistryKeyPermissionCheck]::ReadWriteSubTree,
+            [System.Security.AccessControl.RegistryRights]::ChangePermissions)
+        $acl = $key.GetAccessControl()
+        $rule = New-Object System.Security.AccessControl.RegistryAccessRule(
+            $admins,
+            [System.Security.AccessControl.RegistryRights]::FullControl,
+            [System.Security.AccessControl.InheritanceFlags]::ContainerInherit,
+            [System.Security.AccessControl.PropagationFlags]::None,
+            [System.Security.AccessControl.AccessControlType]::Allow)
+        $acl.AddAccessRule($rule)
+        $key.SetAccessControl($acl)
+        $key.Close()
+
+        Write-Host "   Took ownership and granted Administrators FullControl on $target" -Fore Green
+        return $true
+    }
+    catch {
+        Write-Host "   Take-ownership failed on ${target}: $($_.Exception.Message)" -Fore Red
+        return $false
+    }
+}
+
 function Set-PlayrRegistryValue {
     param(
         [Parameter(Mandatory = $true)] [string] $Path,
@@ -55,26 +254,103 @@ function Set-PlayrRegistryValue {
         [ValidateSet('DWord', 'String')] [string] $Type = 'DWord'
     )
     # HKLM changes are machine-wide and need elevation. When not running as Administrator,
-    # skip them with a clear message rather than letting New-ItemProperty throw a
-    # PermissionDenied / UnauthorizedAccessException to the console.
+    # skip them cleanly (cause #1) rather than throwing UnauthorizedAccessException.
     if (($Path -like 'HKLM:*') -and (-not $script:IsElevated)) {
-        Write-Host "=> SKIPPED $Path\$Name (requires Administrator)" -Fore Yellow
+        Write-Host "=> SKIPPED $Path\$Name (requires Administrator - cause #1, see note above)" -Fore Yellow
         return $false
     }
-    try {
-        if (-not (Test-Path -Path $Path)) {
-            # -ErrorAction Stop is required so a non-terminating error (e.g. access
-            # denied) is turned into a terminating one that the catch block handles.
-            New-Item -Path $Path -Force -ErrorAction Stop | Out-Null
-        }
-        New-ItemProperty -Path $Path -Name $Name -Value $Value -PropertyType $Type -Force -ErrorAction Stop | Out-Null
+
+    if (Invoke-PlayrRegistryWrite -Path $Path -Name $Name -Value $Value -Type $Type) {
         Write-Host "=> Set $Path\$Name = $Value" -Fore Green
         return $true
     }
-    catch {
-        Write-Host "=> FAILED to set $Path\$Name : $($_.Exception.Message)" -Fore Red
+
+    # Write failed. For HKCU this is unusual; just report it.
+    if ($Path -notlike 'HKLM:*') {
+        Write-Host "=> FAILED to set $Path\$Name : $($script:LastRegistryError.Exception.Message)" -Fore Red
         return $false
     }
+
+    # HKLM failure: explain the likely cause (#1 vs #2/#3)...
+    Write-PlayrRegistryFailureDiagnosis -Path $Path -ErrorRecord $script:LastRegistryError
+
+    # ...and, if enabled and we are elevated, try the cause #2 remedy: take ownership + retry.
+    if ($script:AttemptTakeOwnership -and $script:IsElevated) {
+        Write-Host "   Attempting to take ownership of the key and retry..." -Fore Yellow
+        if (Repair-PlayrHklmKeyPermissions -Path $Path) {
+            if (Invoke-PlayrRegistryWrite -Path $Path -Name $Name -Value $Value -Type $Type) {
+                Write-Host "=> Set $Path\$Name = $Value (after taking ownership)" -Fore Green
+                return $true
+            }
+            Write-Host "=> STILL FAILED after taking ownership: $($script:LastRegistryError.Exception.Message)" -Fore Red
+            Write-Host "   This strongly indicates cause #3 (managed by MDM/Group Policy) or blocking security software." -Fore Red
+        }
+    }
+    return $false
+}
+
+# Fallback for when the Widgets policy write (HKLM\...\Dsh\AllowNewsAndInterests) is
+# refused (cause #2 ACL-locked, or cause #3 managed): remove the Widgets component itself
+# instead of touching the policy key. This is an Appx/MSIX uninstall, so it works on all
+# Windows 11 editions (Home/Pro/Enterprise) - it does NOT require Enterprise (that is only
+# needed for Shell Launcher). Note: a future Windows feature update can reinstall it, so
+# this may need re-running. (Manual alternative: winget uninstall "Windows Web Experience Pack".)
+function Disable-PlayrWidgetsViaAppx {
+    if (-not $script:IsElevated) {
+        Write-Host "   Cannot remove the Widgets component without Administrator rights - skipping Appx fallback." -Fore Yellow
+        return $false
+    }
+    # The Widgets board ships as the "Windows Web Experience Pack"; the runtime is a
+    # separate package on some builds. Match both.
+    $patterns = @('*WebExperience*', '*WidgetsPlatformRuntime*')
+    $removedAny = $false
+
+    foreach ($pat in $patterns) {
+        # 1) Remove the installed package for all existing user profiles.
+        try {
+            $pkgs = Get-AppxPackage -AllUsers -Name $pat -ErrorAction SilentlyContinue
+            foreach ($pkg in $pkgs) {
+                try {
+                    Remove-AppxPackage -Package $pkg.PackageFullName -AllUsers -ErrorAction Stop
+                    Write-Host "   Removed Appx package: $($pkg.Name)" -Fore Green
+                    $removedAny = $true
+                }
+                catch {
+                    Write-Host "   Could not remove Appx package $($pkg.Name): $($_.Exception.Message)" -Fore Red
+                }
+            }
+        }
+        catch {
+            Write-Host "   Get-AppxPackage failed for ${pat}: $($_.Exception.Message)" -Fore Yellow
+        }
+
+        # 2) Remove the provisioned package so it is not reinstalled for NEW user profiles.
+        try {
+            $prov = Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue |
+                Where-Object { $_.DisplayName -like $pat }
+            foreach ($pp in $prov) {
+                try {
+                    Remove-AppxProvisionedPackage -Online -PackageName $pp.PackageName -ErrorAction Stop | Out-Null
+                    Write-Host "   Removed provisioned package: $($pp.DisplayName)" -Fore Green
+                    $removedAny = $true
+                }
+                catch {
+                    Write-Host "   Could not remove provisioned package $($pp.DisplayName): $($_.Exception.Message)" -Fore Red
+                }
+            }
+        }
+        catch {
+            Write-Host "   Get-AppxProvisionedPackage failed for ${pat}: $($_.Exception.Message)" -Fore Yellow
+        }
+    }
+
+    if ($removedAny) {
+        Write-Host "=> Widgets component removed via Appx (a Windows feature update may reinstall it)." -Fore Green
+    }
+    else {
+        Write-Host "=> Widgets component not found/removed; it may already be absent or the removal was blocked." -Fore Yellow
+    }
+    return $removedAny
 }
 
 Write-Host "Hardening the Windows 11 taskbar so it stays hidden behind full-screen playback:"
@@ -92,7 +368,13 @@ if (-not $script:IsElevated) {
 #
 ###############################################################################
 # Policy-level disable of the whole widgets experience (strongest, survives updates)
-Set-PlayrRegistryValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Dsh" -Name "AllowNewsAndInterests" -Value 0
+$dshOk = Set-PlayrRegistryValue -Path "HKLM:\SOFTWARE\Policies\Microsoft\Dsh" -Name "AllowNewsAndInterests" -Value 0
+if (-not $dshOk) {
+    # The policy key could not be written (ACL-locked or managed). Disable Widgets by
+    # removing the component itself so it is still gone without touching the policy key.
+    Write-Host "   Widgets policy write was refused; falling back to removing the Widgets component..." -Fore Yellow
+    Disable-PlayrWidgetsViaAppx | Out-Null
+}
 # Remove the Widgets button from the taskbar for the current user
 Set-PlayrRegistryValue -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarDa" -Value 0
 # Legacy "News and interests" (Windows 10 / early Windows 11)
