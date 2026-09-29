@@ -238,22 +238,28 @@ update_browser_preferences() {
   fi
 }
 
-# Current output resolution as WIDTHxHEIGHT (Wayland/DRM first, xrandr as fallback)
+# Active output resolution as WIDTHxHEIGHT.
+# The DRM "modes" file lists every mode the panel advertises, preferred first
+# (often 3840x2160 on a 4K TV). That is not the mode labwc is using. The
+# singular "mode" file is the active one.
 get_primary_resolution() {
   local mode=""
   local mode_file
 
   if command -v wlr-randr >/dev/null 2>&1; then
-    mode=$(wlr-randr 2>/dev/null | awk '/current/ {print $1; exit}')
+    # Match both "(current)" and "(preferred, current)". The latter is what
+    # wlr-randr prints when the active mode is also the panel's preferred mode.
+    mode=$(wlr-randr 2>/dev/null | awk '/current\)/ { if (match($0, /[0-9]+x[0-9]+/)) { print substr($0, RSTART, RLENGTH); exit } }')
   fi
 
   if [ -z "$mode" ]; then
-    for mode_file in /sys/class/drm/card*-HDMI-A-1/modes /sys/class/drm/card*-HDMI-A-2/modes /sys/class/drm/card*-*/modes; do
+    for mode_file in /sys/class/drm/card*-HDMI-A-1/mode /sys/class/drm/card*-HDMI-A-2/mode /sys/class/drm/card*-*/mode; do
       if [ -r "$mode_file" ]; then
         mode=$(head -n1 "$mode_file")
-        if [ -n "$mode" ]; then
-          break
-        fi
+        case "$mode" in
+          ""|0x0) mode="" ;;
+          *) break ;;
+        esac
       fi
     done
   fi
@@ -265,14 +271,12 @@ get_primary_resolution() {
   echo "$mode"
 }
 
-# On Wayland, scale the output instead of passing --force-device-scale-factor.
-# labwc sizes a fullscreen window in logical pixels from its own output scale.
-# Chromium's --force-device-scale-factor overrides that scale, so the surface
-# no longer matches the fullscreen configure and Chromium leaves kiosk mode.
-# Setting the compositor scale keeps kiosk geometry and the 2x layout in agreement.
-# Only outputs currently above Full HD and not already scaled are changed.
+# Chromium's window size on Wayland is the logical size: hardware mode divided
+# by the output scale. A 1920x1080 mode at scale 0.5 is a 3840x2160 desktop,
+# and a 3840x2160 mode at scale 1 is the same. Bring that logical long edge
+# down to Full HD. Use an integer scale (1 or 2); fractional scales on a 4K
+# Pi can make the compositor allocate a buffer wider than 4096 and go black.
 apply_wayland_output_scale() {
-  local scale="$1"
   if ! command -v wlr-randr >/dev/null 2>&1; then
     log_to_file "wlr-randr not found; Wayland output scale not applied"
     log_warning "wlr-randr not found; 4K content will be unscaled so kiosk mode can stay fullscreen"
@@ -281,39 +285,67 @@ apply_wayland_output_scale() {
 
   local outputs
   outputs=$(wlr-randr 2>/dev/null | awk '
+    function flush() {
+      if (name != "" && enabled && pw > 0) print name, pw, ph, scale
+    }
     /^[^[:space:]]/ {
-      if (name != "" && enabled && big && scale + 0 < 1.5) print name
+      flush()
       name = $1
       enabled = 0
-      big = 0
+      pw = 0
+      ph = 0
       scale = 1
     }
     /Enabled: yes/ { enabled = 1 }
-    /\(current\)/ && enabled {
+    # "(preferred, current)" does not contain the substring "(current)".
+    /current\)/ && enabled {
       if (match($0, /[0-9]+x[0-9]+/)) {
-        split(substr($0, RSTART, RLENGTH), dims, "x")
-        if (dims[1] + 0 > 1920 || dims[2] + 0 > 1920) big = 1
+        split(substr($0, RSTART, RLENGTH), d, "x")
+        pw = d[1] + 0
+        ph = d[2] + 0
       }
     }
-    /^[[:space:]]*Scale:/ { scale = $2 }
-    END {
-      if (name != "" && enabled && big && scale + 0 < 1.5) print name
-    }
+    /^[[:space:]]*Scale:/ { scale = $2 + 0 }
+    END { flush() }
   ')
 
   if [ -z "$outputs" ]; then
-    log_to_file "Wayland output already scaled or no >FullHD output found"
-    return 0
+    local sample
+    sample=$(wlr-randr 2>&1 | awk 'NR<=12 { printf "%s | ", $0 }')
+    log_to_file "wlr-randr returned no enabled current mode. sample: ${sample}"
+    log_warning "could not read the Wayland output mode; display scale was not changed"
+    return 1
   fi
 
-  local output
-  for output in $outputs; do
-    log_to_file "setting Wayland output $output scale to $scale"
-    if ! wlr-randr --output "$output" --scale "$scale"; then
-      log_to_file "wlr-randr failed for output $output"
-      log_warning "could not set scale $scale on Wayland output $output"
+  local name pw ph scale physical_long logical_long target
+  while read -r name pw ph scale; do
+    [ -n "$name" ] || continue
+    physical_long=$pw
+    if [ "$ph" -gt "$physical_long" ]; then
+      physical_long=$ph
     fi
-  done
+    logical_long=$(awk -v p="$physical_long" -v s="$scale" 'BEGIN { if (s + 0 == 0) s = 1; printf "%d", (p / s) + 0.5 }')
+    log_to_file "Wayland output $name mode ${pw}x${ph} scale ${scale} logical long edge ${logical_long}"
+    if [ "$logical_long" -le 1920 ]; then
+      continue
+    fi
+    # Mode itself is above Full HD: one logical pixel should cover 2 physical pixels.
+    # Mode is already Full HD or smaller, but a scale below 1 enlarged the desktop.
+    if [ "$physical_long" -gt 1920 ]; then
+      target=2
+    else
+      target=1
+    fi
+    if awk -v s="$scale" -v t="$target" 'BEGIN { exit !((s + 0) == (t + 0)) }'; then
+      log_to_file "output $name already at scale $target"
+      continue
+    fi
+    log_to_file "setting Wayland output $name scale from $scale to $target"
+    if ! wlr-randr --output "$name" --scale "$target"; then
+      log_to_file "wlr-randr failed for output $name"
+      log_warning "could not set scale $target on Wayland output $name"
+    fi
+  done <<< "$outputs"
 }
 
 get_playr_channel() {
@@ -372,8 +404,8 @@ open_playr() {
     log_to_file "Wayland detected"
     wayland_options="--ozone-platform=wayland"
   fi
-  # On Raspberry Pi use a scaling factor of 2 when the screen resolution is
-  # higher than Full HD (a horizontal or vertical resolution greater than 1920).
+  # On Raspberry Pi, keep the desktop's long edge at Full HD when the
+  # logical resolution is higher, so signage stays readable.
   #
   # X11 (Raspberry Pi OS Bookworm): --force-device-scale-factor only changes
   # Chromium's layout scale. The window manager still forces the kiosk window
@@ -381,33 +413,25 @@ open_playr() {
   #
   # Wayland/labwc (Raspberry Pi OS Trixie): do not pass that flag. It overrides
   # the scale labwc advertised, the fullscreen surface no longer matches, and
-  # Chromium drops out of kiosk mode. Scale the output instead.
+  # Chromium drops out of kiosk mode. Scale the output instead. The decision
+  # uses logical pixels (mode / scale), which is the size Chromium actually gets.
   scaling_options=""
   if [ "$(uname -m)" == "aarch64" ]; then
-    resolution=$(get_primary_resolution)
-    horizontal=$(echo "$resolution" | cut -d'x' -f 1)
-    vertical=$(echo "$resolution" | cut -d'x' -f 2)
-    if [[ "$horizontal" =~ ^[0-9]+$ && "$vertical" =~ ^[0-9]+$ ]]; then
-      needs_hires_scale=0
-      if [ "$horizontal" -gt "$vertical" ]; then
-        if [ "$horizontal" -gt "1920" ]; then
-          needs_hires_scale=1
-        fi
-      elif [ "$vertical" -gt "1920" ]; then
-        needs_hires_scale=1
-      fi
-      if [ "$needs_hires_scale" = "1" ]; then
-        log_info "4K detected, setting scaling options to 2"
-        if [ -n "${WAYLAND_DISPLAY:-}" ]; then
-          log_to_file "4K on Wayland: scaling the output instead of --force-device-scale-factor"
-          apply_wayland_output_scale 2
-        else
-          scaling_options="--force-device-scale-factor=2"
-          log_to_file "4K on X11: setting --force-device-scale-factor=2"
-        fi
-      fi
+    if [ -n "${WAYLAND_DISPLAY:-}" ]; then
+      log_to_file "Wayland: adjusting output scale from the current mode and scale"
+      apply_wayland_output_scale
     else
-      log_to_file "resolution is not a number"
+      resolution=$(get_primary_resolution)
+      horizontal=$(echo "$resolution" | cut -d'x' -f 1)
+      vertical=$(echo "$resolution" | cut -d'x' -f 2)
+      if [[ "$horizontal" =~ ^[0-9]+$ && "$vertical" =~ ^[0-9]+$ ]]; then
+        if { [ "$horizontal" -gt "$vertical" ] && [ "$horizontal" -gt 1920 ]; } || { [ "$vertical" -ge "$horizontal" ] && [ "$vertical" -gt 1920 ]; }; then
+          scaling_options="--force-device-scale-factor=2"
+          log_to_file "4K on X11 (${resolution}): setting --force-device-scale-factor=2"
+        fi
+      else
+        log_to_file "resolution is not a number (${resolution})"
+      fi
     fi
   fi
 
