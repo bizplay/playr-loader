@@ -35,9 +35,8 @@ if exist "%playr_log%" (
   for %%F in ("%playr_log%") do if %%~zF geq 1048576 del "%playr_log%"
 )
 echo.>> "%playr_log%"
-echo %date% %time% ===== StartChromeOnMultipleScreens =====>> "%playr_log%"
-echo %date% %time% Script: %~f0>> "%playr_log%"
-
+call :LOG "===== StartChromeOnMultipleScreens ====="
+call :LOG "Script: %~f0"
 :: Locate playr_loader.html on the local Desktop or the OneDrive Desktop
 :: %USERPROFILE% points to your personal profile directory, that usually can be found
 :: at C:\Users\<your user name>
@@ -49,17 +48,16 @@ if exist "%playr_loader_desktop%" (
 ) else if exist "%playr_loader_onedrive%" (
   set "playr_loader_file=%playr_loader_onedrive%"
 ) else (
-  echo %date% %time% ERROR: playr_loader.html not found at:>> "%playr_log%"
-  echo %date% %time%   %playr_loader_desktop%>> "%playr_log%"
-  echo %date% %time%   %playr_loader_onedrive%>> "%playr_log%"
+  call :LOG "ERROR: playr_loader.html not found at:"
+  call :LOG "  %playr_loader_desktop%"
+  call :LOG "  %playr_loader_onedrive%"
   echo ERROR: playr_loader.html not found at:
   echo   %playr_loader_desktop%
   echo   %playr_loader_onedrive%
   timeout /t 30 >nul
   exit /b 1
 )
-echo %date% %time% Loader: %playr_loader_file%>> "%playr_log%"
-
+call :LOG "Loader: %playr_loader_file%"
 :: use the url below if you want be able to set the channel to play on your dashboard.
 :: Note: using this setting requires a one time registration of the playback device
 :: using the dashboard (under Settings/Players)
@@ -115,8 +113,7 @@ set "mac_address=!mac_address:-=:!"
 set "device_id=00020003-0004-0005-0006-000700080009;!mac_address:~0,17!"
 
 :DEVICE_ID_DEFINED
-echo %date% %time% Device ID: %device_id%>> "%playr_log%"
-
+call :LOG "Device ID: %device_id%"
 :: Define the command line options for starting browser
 :: set gpu_options="--ignore-gpu-blocklist --enable-experimental-canvas-features --enable-gpu-rasterization --enable-threaded-gpu-rasterization"
 set "gpu_options="
@@ -155,7 +152,7 @@ if not defined browser_executable if exist "%pf86%\Internet Explorer\iexplore.ex
 if not defined browser_executable if exist "%ProgramFiles%\Internet Explorer\iexplore.exe" set "browser_executable=%ProgramFiles%\Internet Explorer\iexplore.exe"
 
 if not defined browser_executable (
-  echo %date% %time% ERROR: No supported browser found>> "%playr_log%"
+  call :LOG "ERROR: No supported browser found"
   echo ERROR: No supported browser found
   timeout /t 30 >nul
   exit /b 1
@@ -165,17 +162,16 @@ if not defined browser_executable (
 if not exist "!browser_executable!" (
   where "!browser_executable!" >nul 2>nul
   if errorlevel 1 (
-    echo %date% %time% ERROR: Browser not found: !browser_executable!>> "%playr_log%"
+    call :LOG "ERROR: Browser not found: !browser_executable!"
     echo ERROR: Browser not found: !browser_executable!
     timeout /t 30 >nul
     exit /b 1
   )
 )
-echo !browser_executable! | findstr /i /c:"iexplore.exe" >nul && echo %date% %time% WARNING: Using Internet Explorer fallback; kiosk flags may not work>> "%playr_log%"
-echo %date% %time% Browser: %browser_executable%>> "%playr_log%"
-echo %date% %time% Profile: %playr_profile_dir% (%user1%, %user2%, %user3%)>> "%playr_log%"
-echo %date% %time% Channels: %channel1% ^| %channel2% ^| %channel3%>> "%playr_log%"
-
+echo !browser_executable! | findstr /i /c:"iexplore.exe" >nul && call :LOG "WARNING: Using Internet Explorer fallback; kiosk flags may not work"
+call :LOG "Browser: %browser_executable%"
+call :LOG "Profile: %playr_profile_dir% (%user1%, %user2%, %user3%)"
+call :LOG "Channels: %channel1% | %channel2% | %channel3%"
 :: The window positions specified below will work when you use three 1080p screens (1920x1080)
 :: If you use screens with a different resolution you may need to change the values below.
 ::
@@ -188,12 +184,11 @@ set "playr_loader_file_normalized=%playr_loader_file: =!replace!%"
 set "app_url1=file:///%playr_loader_file_normalized%?channel=%channel1%"
 set "app_url2=file:///%playr_loader_file_normalized%?channel=%channel2%"
 set "app_url3=file:///%playr_loader_file_normalized%?channel=%channel3%"
-echo %date% %time% URL1: !app_url1!>> "%playr_log%"
-echo %date% %time% URL2: !app_url2!>> "%playr_log%"
-echo %date% %time% URL3: !app_url3!>> "%playr_log%"
+call :LOG "URL1: !app_url1!"
+call :LOG "URL2: !app_url2!"
+call :LOG "URL3: !app_url3!"
 for %%E in ("%browser_executable%") do set "browser_process_name=%%~nxE"
-echo %date% %time% Browser process: %browser_process_name% (expect 3 instances)>> "%playr_log%"
-
+call :LOG "Browser process: %browser_process_name% (expect 3 instances)"
 :: set mouse pointer to left bottom corner in case css 'mouse: none' does not work
 ::
 rundll32 user32.dll,SetCursorPos
@@ -213,17 +208,17 @@ call :ENCODE_DEVICE_ID_FOR_URL
 :: (e.g. %3A) from URL-encoding. Percent expansion (%var%) would mis-pair those % signs
 :: with %playr_log% on the same line and corrupt the command (breaks on non-English Windows).
 set "watchdog_url=https://ajax.playr.biz/watchdogs/!device_id_encoded!/command"
-echo %date% %time% Watchdog device id (encoded): !device_id_encoded!>> "%playr_log%"
+call :LOG "Watchdog device id (encoded): !device_id_encoded!"
 set "watchdog_remote_enabled=1"
 where curl >nul 2>nul
 if errorlevel 1 (
   set "watchdog_remote_enabled=0"
-  echo %date% %time% WARNING: curl not found; remote reboot watchdog disabled>> "%playr_log%"
+  call :LOG "WARNING: curl not found; remote reboot watchdog disabled"
   echo WARNING: curl not found. Remote reboot disabled; browser restart loop active. See %playr_log%
 ) else (
-  echo %date% %time% Watchdog: remote poll every %watchdog_remote_poll_interval_in_sec%s>> "%playr_log%"
+  call :LOG "Watchdog: remote poll every %watchdog_remote_poll_interval_in_sec%s"
 )
-echo %date% %time% Watchdog: browser check every %watchdog_browser_check_interval_in_sec%s>> "%playr_log%"
+call :LOG "Watchdog: browser check every %watchdog_browser_check_interval_in_sec%s"
 :: first wait for the player to start properly
 timeout /nobreak /t %watchdog_browser_check_interval_in_sec%
 
@@ -235,11 +230,11 @@ set "response=2"
 if exist "%watchdog_response_file%" del "%watchdog_response_file%" /Q >nul 2>nul
 curl -k "!watchdog_url!" -o "%watchdog_response_file%" -s
 if errorlevel 1 (
-  echo %date% %time% WARNING: curl failed, errorlevel %errorlevel%>> "%playr_log%"
+  call :LOG "WARNING: curl failed, errorlevel %errorlevel%"
 ) else if exist "%watchdog_response_file%" (
   for /f "usebackq delims=" %%d in ("%watchdog_response_file%") do set "response=%%d"
 ) else (
-  echo %date% %time% WARNING: curl returned no response file>> "%playr_log%"
+  call :LOG "WARNING: curl returned no response file"
 )
 :: remove html/json tag/structure non-word characters
 set "response=%response:<=%"
@@ -256,14 +251,14 @@ if defined response (
   set "watchdog_response=2"
 )
 if "%reboot_command%"=="%watchdog_response%" (
-  echo %date% %time% Reboot command received from server>> "%playr_log%"
+  call :LOG "Reboot command received from server"
   echo Rebooting the device in 30 seconds...
   shutdown /r /t 30
   exit /b 0
 )
 call :RESTART_BROWSERS_IF_NEEDED
 call :REASSERT_PLAYR_BROWSER_TOPMOST
-echo %date% %time% Continuing watchdog (last server response: %watchdog_response%)>> "%playr_log%"
+call :LOG "Continuing watchdog (last server response: %watchdog_response%)"
 :: Sleep until the next remote poll, but re-check the browsers and re-assert the full-screen
 :: windows every browser-check interval so a Windows 11 taskbar pop-up is corrected within
 :: seconds instead of only once per (much longer) remote poll interval.
@@ -288,6 +283,14 @@ timeout /nobreak /t %watchdog_browser_check_interval_in_sec%
 goto BROWSER_WATCHDOG_LOOP
 
 goto :eof
+
+:LOG
+:: Append a timestamped line to %playr_log%.
+:: Usage: call :LOG "WARNING: curl returned no response file"
+:: The message is taken from %~1 (not a named %var%), so literal % characters in
+:: values such as URL-encoded device ids are not re-paired against %playr_log%.
+>>"%playr_log%" echo %date% %time% %~1
+exit /b 0
 
 :RESOLVE_POWERSHELL_EXE
 set "powershell_exe="
@@ -351,11 +354,11 @@ exit /b 0
 
 :LAUNCH_PLAYR_BROWSERS
 call :PREPARE_PLAYR_PROFILE
-echo %date% %time% Launching multi-screen browsers>> "%playr_log%"
+call :LOG "Launching multi-screen browsers"
 start "" "%browser_executable%" --user-data-dir="%playr_profile_dir%" --profile-directory=%user1% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position1% --start-fullscreen --kiosk --app="!app_url1!"
 start "" "%browser_executable%" --user-data-dir="%playr_profile_dir%" --profile-directory=%user2% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position2% --start-fullscreen --kiosk --app="!app_url2!"
 start "" "%browser_executable%" --user-data-dir="%playr_profile_dir%" --profile-directory=%user3% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position3% --start-fullscreen --kiosk --app="!app_url3!"
-echo %date% %time% Browser launch requested for all screens>> "%playr_log%"
+call :LOG "Browser launch requested for all screens"
 exit /b 0
 
 :PREPARE_PLAYR_PROFILE
@@ -364,10 +367,10 @@ exit /b 0
 :: shutdown). Only clean locks / patch Preferences when the screens are NOT all running.
 call :COUNT_PLAYR_BROWSER_INSTANCES
 if !playr_browser_instance_count! geq 3 (
-  echo %date% %time% All Playr browser screens already running; skipping profile lock cleanup / Preferences patch>> "%playr_log%"
+  call :LOG "All Playr browser screens already running; skipping profile lock cleanup / Preferences patch"
   exit /b 0
 )
-echo %date% %time% Preparing Playr profile before launch>> "%playr_log%"
+call :LOG "Preparing Playr profile before launch"
 :: Quote the path (%%~F strips quotes): %playr_profile_dir% lives under %LOCALAPPDATA%,
 :: which contains the account name and may include spaces or other special characters.
 for %%F in (
@@ -387,10 +390,10 @@ set "PLAYR_PROFILE=%playr_profile_dir%"
 set "PLAYR_PROFILE_SUBDIR=%~1"
 call :RESOLVE_POWERSHELL_EXE
 if defined powershell_exe (
-  echo %date% %time% Patching %PLAYR_PROFILE_SUBDIR% Preferences via PowerShell>> "%playr_log%"
+  call :LOG "Patching %PLAYR_PROFILE_SUBDIR% Preferences via PowerShell"
   "%powershell_exe%" -NoProfile -ExecutionPolicy Bypass -Command "$profileDir=$env:PLAYR_PROFILE; $sub=$env:PLAYR_PROFILE_SUBDIR; $p=Join-Path $profileDir (Join-Path $sub 'Preferences'); if(Test-Path $p){ try { $j=Get-Content -Raw $p | ConvertFrom-Json; if($null -eq $j.profile){ $j | Add-Member -MemberType NoteProperty -Name profile -Value ([pscustomobject]@{}) }; if($j.profile.PSObject.Properties.Name -contains 'exit_type'){ $j.profile.exit_type='Normal' } else { $j.profile | Add-Member -MemberType NoteProperty -Name exit_type -Value 'Normal' }; if($j.profile.PSObject.Properties.Name -contains 'exited_cleanly'){ $j.profile.exited_cleanly=$true } else { $j.profile | Add-Member -MemberType NoteProperty -Name exited_cleanly -Value $true }; $j | ConvertTo-Json -Depth 100 | Set-Content -Encoding UTF8 $p } catch { Rename-Item $p ($p + '.bad.' + (Get-Date -Format 'yyyyMMddHHmmss')) -Force } }" >nul 2>nul
   if not errorlevel 1 exit /b 0
-  echo %date% %time% WARNING: PowerShell Preferences patch failed for %PLAYR_PROFILE_SUBDIR%; trying cscript>> "%playr_log%"
+  call :LOG "WARNING: PowerShell Preferences patch failed for %PLAYR_PROFILE_SUBDIR%; trying cscript"
 )
 set "cscript_exe="
 if exist "%SystemRoot%\System32\cscript.exe" set "cscript_exe=%SystemRoot%\System32\cscript.exe"
@@ -400,12 +403,12 @@ if not defined cscript_exe (
   )
 )
 if defined cscript_exe (
-  echo %date% %time% Patching %PLAYR_PROFILE_SUBDIR% Preferences via cscript>> "%playr_log%"
+  call :LOG "Patching %PLAYR_PROFILE_SUBDIR% Preferences via cscript"
   call :WRITE_PLAYR_PATCH_PREFERENCES
   "%cscript_exe%" //nologo "%TEMP%\playr_patch_preferences.vbs" "%playr_profile_dir%" "%PLAYR_PROFILE_SUBDIR%" >nul 2>nul
   exit /b 0
 )
-echo %date% %time% WARNING: PowerShell and cscript unavailable; deleting %PLAYR_PROFILE_SUBDIR% Preferences>> "%playr_log%"
+call :LOG "WARNING: PowerShell and cscript unavailable; deleting %PLAYR_PROFILE_SUBDIR% Preferences"
 if exist "%playr_profile_dir%\%PLAYR_PROFILE_SUBDIR%\Preferences" (
   del "%playr_profile_dir%\%PLAYR_PROFILE_SUBDIR%\Preferences" /Q >nul 2>nul
 )
@@ -457,7 +460,7 @@ exit /b 0
 :RESTART_BROWSERS_IF_NEEDED
 call :COUNT_PLAYR_BROWSER_INSTANCES
 if !playr_browser_instance_count! geq 3 exit /b 0
-echo %date% %time% WARNING: expected 3 Playr browser instances (profile %playr_profile_dir%), found !playr_browser_instance_count!; restarting all screens>> "%playr_log%"
+call :LOG "WARNING: expected 3 Playr browser instances (profile %playr_profile_dir%), found !playr_browser_instance_count!; restarting all screens"
 call :LAUNCH_PLAYR_BROWSERS
 exit /b 0
 
@@ -501,6 +504,6 @@ if defined wmic_exe (
   )
   exit /b 0
 )
-echo %date% %time% WARNING: wmic not available; falling back to generic %browser_process_name% count>> "%playr_log%"
+call :LOG "WARNING: wmic not available; falling back to generic %browser_process_name% count"
 for /f %%a in ('tasklist /FI "IMAGENAME eq %browser_process_name%" /NH 2^>nul ^| find /c /I "%browser_process_name%"') do set "playr_browser_instance_count=%%a"
 exit /b 0
