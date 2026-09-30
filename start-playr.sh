@@ -415,9 +415,14 @@ open_playr() {
   # the scale labwc advertised, the fullscreen surface no longer matches, and
   # Chromium drops out of kiosk mode. Scale the output instead. The decision
   # uses logical pixels (mode / scale), which is the size Chromium actually gets.
+  #
+  # Exception: when RPIOS_ALLOW_4K is set (any non-empty value), leave the
+  # display and Chromium at native 4K on both Wayland and X11.
   scaling_options=""
   if [ "$(uname -m)" == "aarch64" ]; then
-    if [ -n "${WAYLAND_DISPLAY:-}" ]; then
+    if [ -n "${RPIOS_ALLOW_4K:-}" ]; then
+      log_to_file "RPIOS_ALLOW_4K is set (${RPIOS_ALLOW_4K}); leaving 4K resolution unchanged"
+    elif [ -n "${WAYLAND_DISPLAY:-}" ]; then
       log_to_file "Wayland: adjusting output scale from the current mode and scale"
       apply_wayland_output_scale
     else
