@@ -185,6 +185,7 @@ call :LAUNCH_PLAYR_BROWSER
 set "watchdog_remote_poll_interval_in_sec=305"
 set "watchdog_browser_check_interval_in_sec=60"
 set "watchdog_response_file=%TEMP%\playr_watchdog_response.txt"
+set "watchdog_http_status_file=%TEMP%\playr_watchdog_http_status.txt"
 set "reboot_command=1"
 call :ENCODE_DEVICE_ID_FOR_URL
 :: Use delayed expansion (!var!) here: device_id_encoded may contain literal % sequences
@@ -210,15 +211,28 @@ if "%watchdog_remote_enabled%"=="0" goto BROWSER_WATCHDOG_LOOP
 :WATCHDOG_LOOP
 :: default when the server does not respond or curl fails
 set "response=2"
+set "watchdog_http_status=000"
 if exist "%watchdog_response_file%" del "%watchdog_response_file%" /Q >nul 2>nul
-curl -k "!watchdog_url!" -o "%watchdog_response_file%" -s
-if errorlevel 1 (
-  call :LOG "Watchdog - ERROR: curl failed, errorlevel %errorlevel%"
-) else if exist "%watchdog_response_file%" (
-  for /f "usebackq delims=" %%d in ("%watchdog_response_file%") do set "response=%%d"
-  call :LOG "Watchdog - server response: !response!"
+if exist "%watchdog_http_status_file%" del "%watchdog_http_status_file%" /Q >nul 2>nul
+:: -L follows redirects so a 301/302 "Redirect..." body is not mistaken for a command.
+:: -o writes the final body; -w writes only the final HTTP status to stdout (captured below).
+curl -k -L -s -o "%watchdog_response_file%" -w "%%{http_code}" "!watchdog_url!" > "%watchdog_http_status_file%" 2>nul
+set "curl_errorlevel=!errorlevel!"
+if not "!curl_errorlevel!"=="0" (
+  call :LOG "Watchdog - ERROR: curl failed, errorlevel !curl_errorlevel!"
 ) else (
-  call :LOG "Watchdog - WARNING: curl returned no response file"
+  if exist "%watchdog_http_status_file%" (
+    for /f "usebackq delims=" %%s in ("%watchdog_http_status_file%") do set "watchdog_http_status=%%s"
+  )
+  call :LOG "Watchdog - HTTP status: !watchdog_http_status!"
+  if exist "%watchdog_response_file%" (
+    call :LOG "Watchdog - raw body:"
+    type "%watchdog_response_file%" >> "%playr_log%"
+    echo.>> "%playr_log%"
+    for /f "usebackq delims=" %%d in ("%watchdog_response_file%") do set "response=%%d"
+  ) else (
+    call :LOG "Watchdog - WARNING: curl returned no response file"
+  )
 )
 :: remove html/json tag/structure non-word characters
 set "response=%response:<=%"
@@ -239,10 +253,12 @@ if "%reboot_command%"=="%watchdog_response%" (
   echo Rebooting the device in 30 seconds...
   shutdown /r /t 30
   exit /b 0
+) else (
+  call :LOG "Watchdog - processed server response: !watchdog_response! (from '!response!'), no reboot required"
 )
 call :RESTART_BROWSER_IF_NEEDED
 call :REASSERT_PLAYR_BROWSER_TOPMOST
-call :LOG "Continuing watchdog (last server response: %watchdog_response%)"
+call :LOG "Continuing watchdog (last server response: !watchdog_response!, HTTP !watchdog_http_status!)"
 :: Sleep until the next remote poll, but re-check the browser and re-assert the full-screen
 :: window every browser-check interval so a Windows 11 taskbar pop-up is corrected within
 :: seconds instead of only once per (much longer) remote poll interval.
