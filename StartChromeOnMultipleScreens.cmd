@@ -25,6 +25,19 @@ if not DEFINED IS_MINIMIZED (
   start "" /min "%~dpnx0" %*
   exit
 )
+
+:: Prevent a second Task Scheduler / manual start from running another watchdog
+:: alongside this one (that would launch browsers in a tight duplicate loop).
+:: mkdir is atomic: only the first instance succeeds. After a hard kill the folder
+:: can remain; delete it manually if a new start exits immediately:
+::   rmdir "%TEMP%\playr_multiscreen_watchdog.lockdir"
+set "playr_watchdog_lockdir=%TEMP%\playr_multiscreen_watchdog.lockdir"
+mkdir "%playr_watchdog_lockdir%" 2>nul
+if errorlevel 1 (
+  echo Playr multi-screen watchdog lock in use ^(%playr_watchdog_lockdir%^); exiting.
+  echo If no Playr watchdog should be running, delete that folder and start again.
+  exit /b 0
+)
  
 
 :: Log file for troubleshooting startup issues on signage players
@@ -118,7 +131,7 @@ call :LOG "Device ID: %device_id%"
 :: set gpu_options="--ignore-gpu-blocklist --enable-experimental-canvas-features --enable-gpu-rasterization --enable-threaded-gpu-rasterization"
 set "gpu_options="
 set "persistency_options="
-  :: --disable-session-crashed-bubble has been deprecated since v57 at the latest
+:: --disable-session-crashed-bubble has been deprecated since v57 at the latest
 set "no_nagging_options=--disable-features=SameSiteByDefaultCookies,CookiesWithoutSameSiteMustBeSecure --disable-translate --no-first-run --disable-first-run-ui --no-default-browser-check --autoplay-policy=no-user-gesture-required --no-user-gesture-required --disable-search-engine-choice-screen --hide-crash-restore-bubble"
 
 :: Dedicated Playr browser profile - avoids touching the user's normal Chrome/Edge profile.
@@ -279,15 +292,16 @@ call :LOG "Continuing watchdog (last server response: !watchdog_response!, HTTP 
 :: Sleep until the next remote poll, but re-check the browsers and re-assert the full-screen
 :: windows every browser-check interval so a Windows 11 taskbar pop-up is corrected within
 :: seconds instead of only once per (much longer) remote poll interval.
-set /a "watchdog_remaining=%watchdog_remote_poll_interval_in_sec%"
+set /a "watchdog_remaining=watchdog_remote_poll_interval_in_sec"
 :WATCHDOG_REMOTE_WAIT
+if not defined watchdog_remaining set "watchdog_remaining=0"
 if !watchdog_remaining! leq 0 goto WATCHDOG_LOOP
-if !watchdog_remaining! lss %watchdog_browser_check_interval_in_sec% (
+if !watchdog_remaining! lss !watchdog_browser_check_interval_in_sec! (
   call :WAIT_SECONDS !watchdog_remaining!
   set "watchdog_remaining=0"
 ) else (
-  call :WAIT_SECONDS %watchdog_browser_check_interval_in_sec%
-  set /a "watchdog_remaining-=%watchdog_browser_check_interval_in_sec%"
+  call :WAIT_SECONDS !watchdog_browser_check_interval_in_sec!
+  set /a "watchdog_remaining-=watchdog_browser_check_interval_in_sec"
 )
 call :RESTART_BROWSERS_IF_NEEDED
 call :REASSERT_PLAYR_BROWSER_TOPMOST
@@ -310,18 +324,19 @@ goto :eof
 exit /b 0
 
 :WAIT_SECONDS
-:: Sleep %~1 seconds. timeout fails immediately with
-:: "Input redirection is not supported" when stdin is redirected (start /min,
-:: Task Scheduler, pipes). Feeding nul as stdin avoids that and keeps the
-:: watchdog from spinning and respawning the browser every second.
+:: Sleep %~1 seconds without relying on console stdin.
+:: Do NOT use timeout.exe here: under start /min and Task Scheduler it often fails
+:: immediately ("Input redirection is not supported"), which spins the watchdog and
+:: respawns browsers about once per second. ping -n is reliable in those contexts.
+:: "Missing operand" is avoided by validating that the argument is a positive integer
+:: before any set /a or numeric IF.
 set "playr_wait_secs=%~1"
 if not defined playr_wait_secs set "playr_wait_secs=1"
-if %playr_wait_secs% LSS 1 set "playr_wait_secs=1"
-timeout /nobreak /t %playr_wait_secs% <nul >nul 2>nul
-if errorlevel 1 (
-  set /a "playr_ping_count=playr_wait_secs+1"
-  ping -n %playr_ping_count% 127.0.0.1 >nul 2>nul
-)
+echo !playr_wait_secs!| findstr /r "^[1-9][0-9]*$" >nul
+if errorlevel 1 set "playr_wait_secs=1"
+set /a "playr_ping_count=playr_wait_secs+1"
+if !playr_ping_count! LSS 2 set "playr_ping_count=2"
+ping -n !playr_ping_count! 127.0.0.1 >nul 2>nul
 exit /b 0
 
 :RESOLVE_POWERSHELL_EXE
@@ -391,15 +406,20 @@ start "" "%browser_executable%" --user-data-dir="%playr_profile_dir%" --profile-
 start "" "%browser_executable%" --user-data-dir="%playr_profile_dir%" --profile-directory=%user2% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position2% --start-fullscreen --kiosk --app="!app_url2!"
 start "" "%browser_executable%" --user-data-dir="%playr_profile_dir%" --profile-directory=%user3% --chrome-frame %gpu_options% %persistency_options% %no_nagging_options% --window-position=%screen_position3% --start-fullscreen --kiosk --app="!app_url3!"
 call :LOG "Browser launch requested for all screens"
+:: Give Chrome time to create its process tree before the next "is it running?" check.
+:: Without this settle delay the watchdog can relaunch while startup is still in progress.
+call :WAIT_SECONDS 5
 exit /b 0
 
 :PREPARE_PLAYR_PROFILE
 :: Never touch the profile of running browsers: deleting Singleton* locks or rewriting
 :: Preferences under live Chrome/Edge instances disrupts them (and can look like a random
-:: shutdown). Only clean locks / patch Preferences when the screens are NOT all running.
-call :COUNT_PLAYR_BROWSER_INSTANCES
-if !playr_browser_instance_count! geq 3 (
-  call :LOG "All Playr browser screens already running; skipping profile lock cleanup / Preferences patch"
+:: shutdown). Only clean locks / patch Preferences when NO Playr browser is using the
+:: shared user-data-dir. Chrome does not create one OS process per --profile-directory;
+:: three screens under one --user-data-dir often share a single browser process.
+call :IS_PLAYR_BROWSER_RUNNING
+if "!playr_browser_running!"=="1" (
+  call :LOG "Playr browser profile already in use; skipping profile lock cleanup / Preferences patch"
   exit /b 0
 )
 call :LOG "Preparing Playr profile before launch"
@@ -490,9 +510,12 @@ echo WScript.Quit 0
 exit /b 0
 
 :RESTART_BROWSERS_IF_NEEDED
-call :COUNT_PLAYR_BROWSER_INSTANCES
-if !playr_browser_instance_count! geq 3 exit /b 0
-call :LOG "WARNING: expected 3 Playr browser instances (profile %playr_profile_dir%), found !playr_browser_instance_count!; restarting all screens"
+:: Chrome with one --user-data-dir and three --profile-directory windows typically
+:: keeps a SINGLE browser process (plus helpers), not three. Requiring count>=3 made
+:: the watchdog believe screens were missing forever and relaunch every cycle.
+call :IS_PLAYR_BROWSER_RUNNING
+if "!playr_browser_running!"=="1" exit /b 0
+call :LOG "WARNING: Playr browser (profile %playr_profile_dir%) not running; restarting all screens"
 call :LAUNCH_PLAYR_BROWSERS
 exit /b 0
 
@@ -508,36 +531,33 @@ call :RESOLVE_POWERSHELL_EXE
 if not defined powershell_exe exit /b 0
 set "PLAYR_PROFILE_DIR=%playr_profile_dir%"
 set "BROWSER_PROCESS=%browser_process_name%"
-"%powershell_exe%" -NoProfile -Command "$ErrorActionPreference='SilentlyContinue'; $q=[char]34; $sig='[DllImport('+$q+'user32.dll'+$q+')] public static extern bool SetWindowPos(IntPtr h,IntPtr a,int x,int y,int cx,int cy,uint f);'; $t=Add-Type -MemberDefinition $sig -Name PlayrWin -Namespace Playr -PassThru; $p=$env:PLAYR_PROFILE_DIR; $n=$env:BROWSER_PROCESS; Get-WmiObject Win32_Process -Filter ('Name='''+$n+'''') | Where-Object { $_.CommandLine -and $_.CommandLine.Contains($p) } | ForEach-Object { $pr=Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue; if($pr -and $pr.MainWindowHandle -ne 0){ [Playr.PlayrWin]::SetWindowPos($pr.MainWindowHandle,([IntPtr]-1),0,0,0,0,0x13) | Out-Null } }" >nul 2>nul
+"%powershell_exe%" -NoProfile -Command "$ErrorActionPreference='SilentlyContinue'; $q=[char]34; $sig='[DllImport('+$q+'user32.dll'+$q+')] public static extern bool SetWindowPos(IntPtr h,IntPtr a,int x,int y,int cx,int cy,uint f);'; $t=Add-Type -MemberDefinition $sig -Name PlayrWinMS -Namespace Playr -PassThru; $p=$env:PLAYR_PROFILE_DIR; $n=$env:BROWSER_PROCESS; Get-CimInstance Win32_Process -Filter ('Name='''+$n+'''') -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -and $_.CommandLine.IndexOf($p,[StringComparison]::OrdinalIgnoreCase) -ge 0 } | ForEach-Object { $pr=Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue; if($pr -and $pr.MainWindowHandle -ne 0){ [Playr.PlayrWinMS]::SetWindowPos($pr.MainWindowHandle,([IntPtr]-1),0,0,0,0,0x13) | Out-Null } }" >nul 2>nul
 exit /b 0
 
-:COUNT_PLAYR_BROWSER_INSTANCES
-set "playr_browser_instance_count=0"
+:IS_PLAYR_BROWSER_RUNNING
+:: Sets playr_browser_running=1 when our shared Playr user-data-dir is in use.
+set "playr_browser_running=0"
 set "PLAYR_PROFILE_DIR=%playr_profile_dir%"
 set "BROWSER_PROCESS=%browser_process_name%"
 call :RESOLVE_POWERSHELL_EXE
-:: Run the counter as a normal command line and read the result from a temp file.
-:: A for /f `"%powershell_exe%" ...` (or `"%wmic_exe%" ...`) hits the cmd /c outer-quote
-:: stripping bug -> "syntax of the filename ... is incorrect" and leaves the count at 0.
-:: If CommandLine is inaccessible, PowerShell reports 0 even with browsers running - fall
-:: through to wmic/tasklist in that case so we do not respawn endlessly.
 if defined powershell_exe (
-  "%powershell_exe%" -NoProfile -Command "$p=$env:PLAYR_PROFILE_DIR; $n=$env:BROWSER_PROCESS; $c=0; Get-CimInstance Win32_Process -Filter ('Name='''+$n+'''') -ErrorAction SilentlyContinue | ForEach-Object { if($_.CommandLine -and $_.CommandLine.IndexOf($p,[StringComparison]::OrdinalIgnoreCase) -ge 0){ $c++ } }; Write-Output $c" > "%TEMP%\playr_browser_count.txt" 2>nul
-  if exist "%TEMP%\playr_browser_count.txt" (
-    for /f "usebackq delims=" %%a in ("%TEMP%\playr_browser_count.txt") do set "playr_browser_instance_count=%%a"
-    del "%TEMP%\playr_browser_count.txt" /Q >nul 2>nul
+  "%powershell_exe%" -NoProfile -Command "$p=$env:PLAYR_PROFILE_DIR; $n=$env:BROWSER_PROCESS; $f=$false; Get-CimInstance Win32_Process -Filter ('Name='''+$n+'''') -ErrorAction SilentlyContinue | ForEach-Object { if($_.CommandLine -and $_.CommandLine.IndexOf($p,[StringComparison]::OrdinalIgnoreCase) -ge 0){ $f=$true } }; if($f){exit 0}else{exit 1}" >nul 2>nul
+  set "playr_ps_detect_errorlevel=!errorlevel!"
+  if "!playr_ps_detect_errorlevel!"=="0" (
+    set "playr_browser_running=1"
+    exit /b 0
   )
-  if not "!playr_browser_instance_count!"=="0" exit /b 0
 )
 call :RESOLVE_WMIC_EXE
 if defined wmic_exe (
-  "%wmic_exe%" process where "name='%browser_process_name%'" get CommandLine 2>nul | findstr /I /C:"%playr_profile_dir%" | find /c /v "" > "%TEMP%\playr_browser_count.txt" 2>nul
-  if exist "%TEMP%\playr_browser_count.txt" (
-    for /f "usebackq delims=" %%a in ("%TEMP%\playr_browser_count.txt") do set "playr_browser_instance_count=%%a"
-    del "%TEMP%\playr_browser_count.txt" /Q >nul 2>nul
+  "%wmic_exe%" process where "name='%browser_process_name%'" get CommandLine 2>nul | findstr /I /C:"%playr_profile_dir%" >nul
+  if not errorlevel 1 (
+    set "playr_browser_running=1"
+    exit /b 0
   )
-  if not "!playr_browser_instance_count!"=="0" exit /b 0
 )
-call :LOG "WARNING: wmic not available; falling back to generic %browser_process_name% count"
-for /f %%a in ('tasklist /FI "IMAGENAME eq %browser_process_name%" /NH 2^>nul ^| find /c /I "%browser_process_name%"') do set "playr_browser_instance_count=%%a"
+:: Last resort when CommandLine is inaccessible: any process with our image name.
+:: On a dedicated signage PC this stops endless respawns; count is NOT required to be 3.
+tasklist /FI "IMAGENAME eq %browser_process_name%" 2>nul | find /I "%browser_process_name%" >nul
+if not errorlevel 1 set "playr_browser_running=1"
 exit /b 0

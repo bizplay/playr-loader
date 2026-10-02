@@ -26,6 +26,16 @@ if not DEFINED IS_MINIMIZED (
   start "" /min "%~dpnx0" %* 
   exit
 )
+
+:: Prevent a second Task Scheduler / manual start from running another watchdog.
+:: After a hard kill, delete "%TEMP%\playr_single_watchdog.lockdir" if a new start exits immediately.
+set "playr_watchdog_lockdir=%TEMP%\playr_single_watchdog.lockdir"
+mkdir "%playr_watchdog_lockdir%" 2>nul
+if errorlevel 1 (
+  echo Playr watchdog lock in use ^(%playr_watchdog_lockdir%^); exiting.
+  echo If no Playr watchdog should be running, delete that folder and start again.
+  exit /b 0
+)
  
 :: Log file for troubleshooting startup issues on signage players
 ::
@@ -262,15 +272,16 @@ call :LOG "Continuing watchdog (last server response: !watchdog_response!, HTTP 
 :: Sleep until the next remote poll, but re-check the browser and re-assert the full-screen
 :: window every browser-check interval so a Windows 11 taskbar pop-up is corrected within
 :: seconds instead of only once per (much longer) remote poll interval.
-set /a "watchdog_remaining=%watchdog_remote_poll_interval_in_sec%"
+set /a "watchdog_remaining=watchdog_remote_poll_interval_in_sec"
 :WATCHDOG_REMOTE_WAIT
+if not defined watchdog_remaining set "watchdog_remaining=0"
 if !watchdog_remaining! leq 0 goto WATCHDOG_LOOP
-if !watchdog_remaining! lss %watchdog_browser_check_interval_in_sec% (
+if !watchdog_remaining! lss !watchdog_browser_check_interval_in_sec! (
   call :WAIT_SECONDS !watchdog_remaining!
   set "watchdog_remaining=0"
 ) else (
-  call :WAIT_SECONDS %watchdog_browser_check_interval_in_sec%
-  set /a "watchdog_remaining-=%watchdog_browser_check_interval_in_sec%"
+  call :WAIT_SECONDS !watchdog_browser_check_interval_in_sec!
+  set /a "watchdog_remaining-=watchdog_browser_check_interval_in_sec"
 )
 call :RESTART_BROWSER_IF_NEEDED
 call :REASSERT_PLAYR_BROWSER_TOPMOST
@@ -293,18 +304,19 @@ goto :eof
 exit /b 0
 
 :WAIT_SECONDS
-:: Sleep %~1 seconds. timeout fails immediately with
-:: "Input redirection is not supported" when stdin is redirected (start /min,
-:: Task Scheduler, pipes). Feeding nul as stdin avoids that and keeps the
-:: watchdog from spinning and respawning the browser every second.
+:: Sleep %~1 seconds without relying on console stdin.
+:: Do NOT use timeout.exe here: under start /min and Task Scheduler it often fails
+:: immediately ("Input redirection is not supported"), which spins the watchdog and
+:: respawns browsers about once per second. ping -n is reliable in those contexts.
+:: "Missing operand" is avoided by validating that the argument is a positive integer
+:: before any set /a or numeric IF.
 set "playr_wait_secs=%~1"
 if not defined playr_wait_secs set "playr_wait_secs=1"
-if %playr_wait_secs% LSS 1 set "playr_wait_secs=1"
-timeout /nobreak /t %playr_wait_secs% <nul >nul 2>nul
-if errorlevel 1 (
-  set /a "playr_ping_count=playr_wait_secs+1"
-  ping -n %playr_ping_count% 127.0.0.1 >nul 2>nul
-)
+echo !playr_wait_secs!| findstr /r "^[1-9][0-9]*$" >nul
+if errorlevel 1 set "playr_wait_secs=1"
+set /a "playr_ping_count=playr_wait_secs+1"
+if !playr_ping_count! LSS 2 set "playr_ping_count=2"
+ping -n !playr_ping_count! 127.0.0.1 >nul 2>nul
 exit /b 0
 
 :RESOLVE_POWERSHELL_EXE
@@ -440,7 +452,7 @@ exit /b 0
 :: Preferences under a live Chrome/Edge disrupts it (and can look like a random shutdown).
 :: Only clean locks / patch Preferences when the browser is confirmed NOT running.
 call :IS_PLAYR_BROWSER_RUNNING
-if "%playr_browser_running%"=="1" (
+if "!playr_browser_running!"=="1" (
   call :LOG "Playr browser already running; skipping profile lock cleanup / Preferences patch"
   exit /b 0
 )
@@ -462,11 +474,13 @@ call :PREPARE_PLAYR_PROFILE
 call :LOG "Launching browser"
 start "" "%browser_executable%" %gpu_options% %persistency_options% %no_nagging_options% --user-data-dir="%playr_profile_dir%" --start-fullscreen --kiosk --app="!app_url!"
 call :LOG "Browser launch requested"
+:: Give Chrome time to create its process tree before the next "is it running?" check.
+call :WAIT_SECONDS 5
 exit /b 0
 
 :RESTART_BROWSER_IF_NEEDED
 call :IS_PLAYR_BROWSER_RUNNING
-if "%playr_browser_running%"=="1" exit /b 0
+if "!playr_browser_running!"=="1" exit /b 0
 call :LOG "WARNING: Playr browser (%browser_process_name% with profile %playr_profile_dir%) not running; restarting"
 call :LAUNCH_PLAYR_BROWSER
 exit /b 0
