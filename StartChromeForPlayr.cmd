@@ -21,6 +21,23 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
+rem cmd.exe cannot resolve labels (:LOG, :WAIT_SECONDS, ...) when this file has
+rem Unix LF line endings. GitHub "Download ZIP" serves LF when the repo is
+rem maintained on macOS or Linux; .gitattributes does not apply to that zip.
+rem This block must not CALL a label or GOTO. It writes a CRLF copy and runs that.
+rem Do not CALL the copy: transferring avoids this LF copy running as well.
+set "PLAYR_HANDOFF="
+if not defined PLAYR_SOURCE set "PLAYR_SOURCE=%~f0"
+if not defined PLAYR_CRLF_HELPER set "PLAYR_CRLF_HELPER=%~dp0EnsureCmdLineEndings.ps1"
+set "PLAYR_FIXED=%TEMP%\PlayrLaunch\%~nx0"
+set "PLAYR_GO=%TEMP%\PlayrLaunch\%~nx0.go"
+if /I "%~f0"=="%PLAYR_FIXED%" del "%PLAYR_GO%" 2>nul
+if exist "%PLAYR_CRLF_HELPER%" if exist "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" "%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "%PLAYR_CRLF_HELPER%" "%~f0" "%PLAYR_FIXED%" "%PLAYR_GO%" "%PLAYR_SOURCE%"
+if exist "%PLAYR_GO%" set "PLAYR_HANDOFF=1"
+if "%PLAYR_HANDOFF%"=="1" echo Playr: Unix line endings detected. Continuing from "%PLAYR_FIXED%"
+if "%PLAYR_HANDOFF%"=="1" "%PLAYR_FIXED%" %*
+if "%PLAYR_HANDOFF%"=="1" exit /b 0
+
 if not DEFINED IS_MINIMIZED (
   set "IS_MINIMIZED=1"
   start "" /min "%~dpnx0" %* 
@@ -46,7 +63,8 @@ if exist "%playr_log%" (
 )
 echo.>> "%playr_log%"
 call :LOG "===== StartChromeForPlayr ====="
-call :LOG "Script: %~f0"
+call :LOG "Script: %PLAYR_SOURCE%"
+if /I not "%~f0"=="%PLAYR_SOURCE%" call :LOG "Running CRLF copy of that script: %~f0"
 :: Locate playr_loader.html on the local Desktop or the OneDrive Desktop
 :: %USERPROFILE% points to your personal profile directory, that usually can be found
 :: at C:\Users\<your user name>

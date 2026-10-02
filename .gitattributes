@@ -1,0 +1,6 @@
+# git checkout on Windows rewrites these to CRLF.
+# GitHub "Download ZIP" does not: it serves the git blob, which is LF when the
+# repo is maintained on macOS or Linux. StartChrome*.cmd repairs that at startup
+# via EnsureCmdLineEndings.ps1, which must stay in the same folder as the .cmd files.
+*.cmd text eol=crlf
+*.bat text eol=crlf
