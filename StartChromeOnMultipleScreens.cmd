@@ -504,13 +504,15 @@ call :RESOLVE_POWERSHELL_EXE
 :: Run the counter as a normal command line and read the result from a temp file.
 :: A for /f `"%powershell_exe%" ...` (or `"%wmic_exe%" ...`) hits the cmd /c outer-quote
 :: stripping bug -> "syntax of the filename ... is incorrect" and leaves the count at 0.
+:: If CommandLine is inaccessible, PowerShell reports 0 even with browsers running - fall
+:: through to wmic/tasklist in that case so we do not respawn endlessly.
 if defined powershell_exe (
-  "%powershell_exe%" -NoProfile -Command "$p=$env:PLAYR_PROFILE_DIR; $n=$env:BROWSER_PROCESS; $c=0; Get-WmiObject Win32_Process -Filter ('Name='''+$n+'''') -ErrorAction SilentlyContinue | ForEach-Object { if($_.CommandLine -and $_.CommandLine.Contains($p)){ $c++ } }; Write-Output $c" > "%TEMP%\playr_browser_count.txt" 2>nul
+  "%powershell_exe%" -NoProfile -Command "$p=$env:PLAYR_PROFILE_DIR; $n=$env:BROWSER_PROCESS; $c=0; Get-CimInstance Win32_Process -Filter ('Name='''+$n+'''') -ErrorAction SilentlyContinue | ForEach-Object { if($_.CommandLine -and $_.CommandLine.IndexOf($p,[StringComparison]::OrdinalIgnoreCase) -ge 0){ $c++ } }; Write-Output $c" > "%TEMP%\playr_browser_count.txt" 2>nul
   if exist "%TEMP%\playr_browser_count.txt" (
     for /f "usebackq delims=" %%a in ("%TEMP%\playr_browser_count.txt") do set "playr_browser_instance_count=%%a"
     del "%TEMP%\playr_browser_count.txt" /Q >nul 2>nul
   )
-  exit /b 0
+  if not "!playr_browser_instance_count!"=="0" exit /b 0
 )
 call :RESOLVE_WMIC_EXE
 if defined wmic_exe (
@@ -519,7 +521,7 @@ if defined wmic_exe (
     for /f "usebackq delims=" %%a in ("%TEMP%\playr_browser_count.txt") do set "playr_browser_instance_count=%%a"
     del "%TEMP%\playr_browser_count.txt" /Q >nul 2>nul
   )
-  exit /b 0
+  if not "!playr_browser_instance_count!"=="0" exit /b 0
 )
 call :LOG "WARNING: wmic not available; falling back to generic %browser_process_name% count"
 for /f %%a in ('tasklist /FI "IMAGENAME eq %browser_process_name%" /NH 2^>nul ^| find /c /I "%browser_process_name%"') do set "playr_browser_instance_count=%%a"

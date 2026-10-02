@@ -476,19 +476,31 @@ set "playr_browser_running=0"
 set "PLAYR_PROFILE_DIR=%playr_profile_dir%"
 set "BROWSER_PROCESS=%browser_process_name%"
 call :RESOLVE_POWERSHELL_EXE
+:: Prefer a profile-specific match (command line contains --user-data-dir / Playr profile).
+:: On many locked-down / non-elevated Windows 11 sessions Win32_Process.CommandLine is
+:: empty, so PowerShell correctly finds chrome.exe but cannot see the profile path and
+:: would report "not running". Do NOT exit in that case - fall through to wmic/tasklist.
+:: Otherwise the watchdog deletes Singleton* locks and starts another browser every cycle.
 if defined powershell_exe (
-  "%powershell_exe%" -NoProfile -Command "$p=$env:PLAYR_PROFILE_DIR; $n=$env:BROWSER_PROCESS; $f=$false; Get-WmiObject Win32_Process -Filter ('Name='''+$n+'''') -ErrorAction SilentlyContinue | ForEach-Object { if($_.CommandLine -and $_.CommandLine.Contains($p)){ $f=$true } }; if($f){exit 0}else{exit 1}" >nul 2>nul
-  if not errorlevel 1 set "playr_browser_running=1"
-  exit /b 0
+  "%powershell_exe%" -NoProfile -Command "$p=$env:PLAYR_PROFILE_DIR; $n=$env:BROWSER_PROCESS; $f=$false; Get-CimInstance Win32_Process -Filter ('Name='''+$n+'''') -ErrorAction SilentlyContinue | ForEach-Object { if($_.CommandLine -and $_.CommandLine.IndexOf($p,[StringComparison]::OrdinalIgnoreCase) -ge 0){ $f=$true } }; if($f){exit 0}else{exit 1}" >nul 2>nul
+  set "playr_ps_detect_errorlevel=!errorlevel!"
+  if "!playr_ps_detect_errorlevel!"=="0" (
+    set "playr_browser_running=1"
+    exit /b 0
+  )
 )
 call :RESOLVE_WMIC_EXE
 if defined wmic_exe (
   call :LOG "Checking browser status with wmic"
   "%wmic_exe%" process where "name='%browser_process_name%'" get CommandLine 2>nul | findstr /I /C:"%playr_profile_dir%" >nul
-  if not errorlevel 1 set "playr_browser_running=1"
+  if not errorlevel 1 (
+    set "playr_browser_running=1"
+    exit /b 0
+  )
 )
-if "%playr_browser_running%"=="1" exit /b 0
-call :LOG "WARNING: Cannot inspect process command line; falling back to generic %browser_process_name% check"
+:: Last resort: process name only. On a dedicated signage PC this is enough to stop
+:: endless respawns when command-line inspection is blocked.
+call :LOG "Checking browser status with tasklist"
 tasklist /FI "IMAGENAME eq %browser_process_name%" 2>nul | find /I "%browser_process_name%" >nul
 if not errorlevel 1 set "playr_browser_running=1"
 exit /b 0
