@@ -1,0 +1,6 @@
+#!/bin/sh
+# cmd.exe misses labels such as :LOG when a .cmd file is saved with LF only.
+# Rewrite staged batch files to CRLF so the committed blob, and the GitHub zip
+# of that blob, stays CRLF.
+root=$(git rev-parse --show-toplevel) || exit 1
+exec python3 "$root/githooks/ensure-batch-crlf.py"

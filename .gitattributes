@@ -1,6 +1,5 @@
-# git checkout on Windows rewrites these to CRLF.
-# GitHub "Download ZIP" does not: it serves the git blob, which is LF when the
-# repo is maintained on macOS or Linux. StartChrome*.cmd repairs that at startup
-# via EnsureCmdLineEndings.ps1, which must stay in the same folder as the .cmd files.
-*.cmd text eol=crlf
-*.bat text eol=crlf
+# Keep the CRLF bytes in the git blob. GitHub's zip serves that blob as stored.
+# "text eol=crlf" would normalize the blob to LF, and cmd.exe would then miss
+# labels such as :LOG. A pre-commit hook rewrites LF batch files before commit.
+*.cmd -text
+*.bat -text
