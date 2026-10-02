@@ -54,7 +54,7 @@ if exist "%playr_loader_desktop%" (
   echo ERROR: playr_loader.html not found at:
   echo   %playr_loader_desktop%
   echo   %playr_loader_onedrive%
-  timeout /t 30 >nul
+  call :WAIT_SECONDS 30
   exit /b 1
 )
 call :LOG "Loader: %playr_loader_file%"
@@ -154,7 +154,7 @@ if not defined browser_executable if exist "%ProgramFiles%\Internet Explorer\iex
 if not defined browser_executable (
   call :LOG "ERROR: No supported browser found"
   echo ERROR: No supported browser found
-  timeout /t 30 >nul
+  call :WAIT_SECONDS 30
   exit /b 1
 )
 
@@ -164,7 +164,7 @@ if not exist "!browser_executable!" (
   if errorlevel 1 (
     call :LOG "ERROR: Browser not found: !browser_executable!"
     echo ERROR: Browser not found: !browser_executable!
-    timeout /t 30 >nul
+    call :WAIT_SECONDS 30
     exit /b 1
   )
 )
@@ -221,7 +221,7 @@ if errorlevel 1 (
 )
 call :LOG "Watchdog: browser check every %watchdog_browser_check_interval_in_sec%s"
 :: first wait for the player to start properly
-timeout /nobreak /t %watchdog_browser_check_interval_in_sec%
+call :WAIT_SECONDS %watchdog_browser_check_interval_in_sec%
 
 if "%watchdog_remote_enabled%"=="0" goto BROWSER_WATCHDOG_LOOP
 
@@ -283,10 +283,10 @@ set /a "watchdog_remaining=%watchdog_remote_poll_interval_in_sec%"
 :WATCHDOG_REMOTE_WAIT
 if !watchdog_remaining! leq 0 goto WATCHDOG_LOOP
 if !watchdog_remaining! lss %watchdog_browser_check_interval_in_sec% (
-  timeout /nobreak /t !watchdog_remaining!
+  call :WAIT_SECONDS !watchdog_remaining!
   set "watchdog_remaining=0"
 ) else (
-  timeout /nobreak /t %watchdog_browser_check_interval_in_sec%
+  call :WAIT_SECONDS %watchdog_browser_check_interval_in_sec%
   set /a "watchdog_remaining-=%watchdog_browser_check_interval_in_sec%"
 )
 call :RESTART_BROWSERS_IF_NEEDED
@@ -296,7 +296,7 @@ goto WATCHDOG_REMOTE_WAIT
 :BROWSER_WATCHDOG_LOOP
 call :RESTART_BROWSERS_IF_NEEDED
 call :REASSERT_PLAYR_BROWSER_TOPMOST
-timeout /nobreak /t %watchdog_browser_check_interval_in_sec%
+call :WAIT_SECONDS %watchdog_browser_check_interval_in_sec%
 goto BROWSER_WATCHDOG_LOOP
 
 goto :eof
@@ -307,6 +307,21 @@ goto :eof
 :: The message is taken from %~1 (not a named %var%), so literal % characters in
 :: values such as URL-encoded device ids are not re-paired against %playr_log%.
 >>"%playr_log%" echo %date% %time% %~1
+exit /b 0
+
+:WAIT_SECONDS
+:: Sleep %~1 seconds. timeout fails immediately with
+:: "Input redirection is not supported" when stdin is redirected (start /min,
+:: Task Scheduler, pipes). Feeding nul as stdin avoids that and keeps the
+:: watchdog from spinning and respawning the browser every second.
+set "playr_wait_secs=%~1"
+if not defined playr_wait_secs set "playr_wait_secs=1"
+if %playr_wait_secs% LSS 1 set "playr_wait_secs=1"
+timeout /nobreak /t %playr_wait_secs% <nul >nul 2>nul
+if errorlevel 1 (
+  set /a "playr_ping_count=playr_wait_secs+1"
+  ping -n %playr_ping_count% 127.0.0.1 >nul 2>nul
+)
 exit /b 0
 
 :RESOLVE_POWERSHELL_EXE
