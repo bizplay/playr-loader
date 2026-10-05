@@ -318,9 +318,12 @@ goto :eof
 :LOG
 :: Append a timestamped line to %playr_log%.
 :: Usage: call :LOG "WARNING: curl returned no response file"
-:: The message is taken from %~1 (not a named %var%), so literal % characters in
-:: values such as URL-encoded device ids are not re-paired against %playr_log%.
->>"%playr_log%" echo %date% %time% %~1
+:: The message is copied from %~1 on its own quoted line, so literal % characters
+:: in values such as URL-encoded device ids are not re-paired against %playr_log%.
+:: It is then written with delayed expansion. An "&" in the message, such as
+:: &watchdog_id= in the player URL, is therefore not a command separator.
+set "playr_log_msg=%~1"
+>>"%playr_log%" echo %date% %time% !playr_log_msg!
 exit /b 0
 
 :WAIT_SECONDS

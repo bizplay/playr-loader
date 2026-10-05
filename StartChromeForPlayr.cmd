@@ -177,7 +177,7 @@ call :LOG "Channel: %channel%"
 set "replace=%%20"
 set "playr_loader_file_normalized=%playr_loader_file: =!replace!%"
 :: escaping the & by either url-encoding it (%%26) or by using ^&  for cmd echo/start
-:: does not work when starting Chrome from the command line as is doen later in this file
+:: does not work when starting Chrome from the command line as is done later in this file
 set "app_url=file:///%playr_loader_file_normalized%?channel=%channel%&watchdog_id=%device_id%"
 call :LOG "URL: !app_url!"
 for %%E in ("%browser_executable%") do set "browser_process_name=%%~nxE"
@@ -298,9 +298,12 @@ goto :eof
 :LOG
 :: Append a timestamped line to %playr_log%.
 :: Usage: call :LOG "WARNING: curl returned no response file"
-:: The message is taken from %~1 (not a named %var%), so literal % characters in
-:: values such as URL-encoded device ids are not re-paired against %playr_log%.
->>"%playr_log%" echo %date% %time% %~1
+:: The message is copied from %~1 on its own quoted line, so literal % characters
+:: in values such as URL-encoded device ids are not re-paired against %playr_log%.
+:: It is then written with delayed expansion. An "&" in the message, such as
+:: &watchdog_id= in the player URL, is therefore not a command separator.
+set "playr_log_msg=%~1"
+>>"%playr_log%" echo %date% %time% !playr_log_msg!
 exit /b 0
 
 :WAIT_SECONDS
