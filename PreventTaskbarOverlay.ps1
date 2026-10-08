@@ -350,6 +350,15 @@ function Disable-PlayrWidgetsViaAppx {
     else {
         Write-Host "=> Widgets component not found/removed; it may already be absent or the removal was blocked." -Fore Yellow
     }
+    Write-Host "=> NOTE: If there are errors reported above this line or the fact that a Windows feature update may reinstall it," -Fore Yellow
+    Write-Host "         it may be best to disable Widgets on this device by:" -Fore Yellow
+    Write-Host "         1. starting Group Policy Editor: Type Windows-key + R, then type gpedit.msc and press Enter" -Fore Yellow
+    Write-Host "         2. navigating to: Computer Configuration → Administrative Templates → Windows Components → Widgets" -Fore Yellow
+    Write-Host "         3. setting the value to Disabled" -Fore Yellow
+    Write-Host "         4. clicking Apply" -Fore Yellow
+    Write-Host "         5. clicking OK" -Fore Yellow
+    Write-Host "         This will disable Widgets for all users on this device." -Fore Yellow
+    Write-Host "         It will also prevent a Windows feature update from reinstalling Widgets." -Fore Yellow
     return $removedAny
 }
 
