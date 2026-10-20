@@ -260,6 +260,11 @@ if defined response (
 )
 if "%reboot_command%"=="%watchdog_response%" (
   call :LOG "Reboot command received from server"
+  :: Clear the single-instance lock so the logon auto-start after reboot can create a new one.
+  if defined playr_watchdog_lockdir if exist "%playr_watchdog_lockdir%" (
+    rmdir "%playr_watchdog_lockdir%" 2>nul
+    call :LOG "Removed watchdog lock before reboot: %playr_watchdog_lockdir%"
+  )
   echo Rebooting the device in 30 seconds...
   shutdown /r /t 30
   exit /b 0
