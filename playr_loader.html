@@ -91,6 +91,9 @@
       "use strict";
       if (queryString.channel === undefined) {
         document.getElementById("missing_channel_parameter").style.display = "block";
+        document.getElementById("exception_message").innerHTML = JSON.stringify(queryString);
+        document.getElementById("exception_message").style.display = "block";
+
         return false;
       }
       return true;
@@ -104,7 +107,7 @@
       document.getElementById("parameters").style.display = "none";
       document.getElementById("ajax_loader").style.display = "none";
       document.getElementById("exception_message").style.display = "none";
-      document.getElementById("#missing_channel_parameter").style.display = "none";
+      document.getElementById("missing_channel_parameter").style.display = "none";
       // Append Date param to ensure cache bypass. Navigate immediately: a delayed
       // setTimeout can be frozen by WebView.onPause() and leave the loader stuck.
       // encodeURIComponent not necessary since new Date().getTime() returns only numbers
@@ -193,7 +196,7 @@
         document.getElementById("parameters").innerHTML = '<table style="width:50%; padding:5px; bottom:50px; text-align:left;" >' +
           '<tr><td><h3>Parameters:</h3></td><td></td></tr>' + listParameters() + "</table>";
         document.getElementById("parameters").style.display = "block";
-        document.getElementById("#missing_channel_parameter").style.display = "none";
+        document.getElementById("missing_channel_parameter").style.display = "none";
       } catch (exception) {
         console.error("displayInformation exception: " + exception.message);
       }
@@ -296,6 +299,7 @@
     <p>Retrying in <span id="seconds">0</span> seconds...</p>
   </div>
   <div id="parameters"></div>
+  <div id="exception_message"></div>
   <div id="missing_channel_parameter">
     <p><h3>The channel url is missing.</h3></p>
     <p>Please make sure the web address of this page contains a 'channel' parameter with an appropriate value</p>
